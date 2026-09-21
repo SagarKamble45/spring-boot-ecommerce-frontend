@@ -67,12 +67,10 @@ export const addToCart =
     // console.log(getState());
 
     const { products } = getState().products;
-    
+
     const getProduct = products.find(
       (item) => item.productId === data.productId,
     );
-
-    
 
     // Check for stocks
     const isQuantityExist = getProduct.quantity >= qty;
@@ -224,14 +222,14 @@ export const addUpdateUserAddress =
     }
   };
 
-  export const getUserAddresses = () => async (dispatch, getState) => {
-   try {
-      dispatch({type: "IS_FETCHING"})
-      const { data } = await api.get('/users/addresses')
-      // console.log(data)
-      dispatch({type:"USER_ADDRESS", payload:data})
-      dispatch({type:"IS_SUCCESS"})
-    } catch (error) {
+export const getUserAddresses = () => async (dispatch, getState) => {
+  try {
+    dispatch({ type: "IS_FETCHING" });
+    const { data } = await api.get("/users/addresses");
+    // console.log(data)
+    dispatch({ type: "USER_ADDRESS", payload: data });
+    dispatch({ type: "IS_SUCCESS" });
+  } catch (error) {
     console.log(error);
     dispatch({
       type: "IS_ERROR",
@@ -246,27 +244,27 @@ export const addUpdateUserAddress =
 };
 
 export const selectUserCheckoutAddress = (address) => {
+  localStorage.setItem("CHECKOUT_ADDRESS", JSON.stringify(address));
   return {
-    type:"SELECT_CHECKOUT_ADDRESS",
-    payload:address,
-  }
-}
+    type: "SELECT_CHECKOUT_ADDRESS",
+    payload: address,
+  };
+};
 
 export const addPaymentMethod = (method) => {
   return {
-    type:"ADD_PAYMENT_METHOD",
-    payload:method,
-  }
-}
+    type: "ADD_PAYMENT_METHOD",
+    payload: method,
+  };
+};
 
- export const createUserCart = (sendCartItems) => async (dispatch, getState) => {
-   try {
-      dispatch({type: "IS_FETCHING"})
-      // console.log(data)
-      await api.post('/cart/create', sendCartItems);
-      await dispatch(getUserCart());
-
-    } catch (error) {
+export const createUserCart = (sendCartItems) => async (dispatch, getState) => {
+  try {
+    dispatch({ type: "IS_FETCHING" });
+    // console.log(data)
+    await api.post("/cart/create", sendCartItems);
+    await dispatch(getUserCart());
+  } catch (error) {
     console.log(error);
     dispatch({
       type: "IS_ERROR",
@@ -281,19 +279,19 @@ export const addPaymentMethod = (method) => {
 };
 
 export const getUserCart = () => async (dispatch, getState) => {
-   try {
-      dispatch({type: "IS_FETCHING"})
-    const { data } = await api.get('/carts/users/cart')
-      // console.log(data)   
+  try {
+    dispatch({ type: "IS_FETCHING" });
+    const { data } = await api.get("/carts/users/cart");
+    // console.log(data)
     dispatch({
-        type:"GET_USER_CART_PRODUCTS",
-        payload: data.products,
-        totalPrice: data.totalPrice,
-        cartId: data.cartId,
-    }) 
+      type: "GET_USER_CART_PRODUCTS",
+      payload: data.products,
+      totalPrice: data.totalPrice,
+      cartId: data.cartId,
+    });
     localStorage.setItem("cartItems", JSON.stringify(getState().carts.cart));
-    dispatch({type: "IS_SUCCESS"})
-    } catch (error) {
+    dispatch({ type: "IS_SUCCESS" });
+  } catch (error) {
     console.log(error);
     dispatch({
       type: "IS_ERROR",
@@ -307,56 +305,48 @@ export const getUserCart = () => async (dispatch, getState) => {
   }
 };
 
+export const createRazorpayCheckoutOrder = (addressId) => async (dispatch) => {
+  try {
+    dispatch({ type: "RAZORPAY_PAYMENT_START" });
 
-export const createRazorpayCheckoutOrder =
-  (addressId) => async (dispatch) => {
-    try {
-      dispatch({ type: "RAZORPAY_PAYMENT_START" });
+    // Creates internal PENDING order
+    const { data: internalOrder } = await api.post("/orders", {
+      addressId,
+    });
 
-      // Creates internal PENDING order
-      const { data: internalOrder } = await api.post("/orders", {
-        addressId,
-      });
+    // Creates Razorpay Test Mode order
+    const { data: razorpayOrder } = await api.post("/payments/razorpay/order", {
+      orderId: internalOrder.orderId,
+    });
 
-      // Creates Razorpay Test Mode order
-      const { data: razorpayOrder } = await api.post(
-        "/payments/razorpay/order",
-        {
-          orderId: internalOrder.orderId,
-        },
-      );
+    dispatch({
+      type: "RAZORPAY_ORDER_CREATED",
+      payload: {
+        internalOrder,
+        razorpayOrder,
+      },
+    });
 
-      dispatch({
-        type: "RAZORPAY_ORDER_CREATED",
-        payload: {
-          internalOrder,
-          razorpayOrder,
-        },
-      });
+    // A thunk can return data to Checkout.jsx
+    return { internalOrder, razorpayOrder };
+  } catch (error) {
+    const message =
+      error?.response?.data?.message ||
+      error?.message ||
+      "Unable to start payment";
 
-      // A thunk can return data to Checkout.jsx
-      return { internalOrder, razorpayOrder };
-    } catch (error) {
-      const message =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Unable to start payment";
+    dispatch({
+      type: "RAZORPAY_PAYMENT_ERROR",
+      payload: message,
+    });
 
-      dispatch({
-        type: "RAZORPAY_PAYMENT_ERROR",
-        payload: message,
-      });
-
-      throw new Error(message);
-    }
-  };
+    throw new Error(message);
+  }
+};
 
 export const verifyRazorpayPayment = (paymentData) => async (dispatch) => {
   try {
-    const { data } = await api.post(
-      "/payments/razorpay/verify",
-      paymentData,
-    );
+    const { data } = await api.post("/payments/razorpay/verify", paymentData);
 
     dispatch({
       type: "RAZORPAY_PAYMENT_VERIFIED",
@@ -378,3 +368,47 @@ export const verifyRazorpayPayment = (paymentData) => async (dispatch) => {
     throw new Error(message);
   }
 };
+
+export const createStripePaymentSecret =
+  (sendData) => async (dispatch, getState) => {
+    try {
+      dispatch({ type: "IS_FETCHING" });
+      const { data } = await api.post("/payments/stripe/client-secret",sendData);
+      dispatch({ type: "CLIENT_SECRET", payload: data });
+      localStorage.setItem("client-secret", JSON.stringify(data));
+      dispatch({ type: "IS_SUCCESS" });
+    } catch (error) {
+      console.log(error);
+      toast.error(
+        error?.response?.data?.message || "Failed to create client secret",
+      );
+    }
+  };
+
+export const stripePaymentConfirmation =
+  (sendData, setErrorMessage, setLoading, toast) =>
+  async (dispatch, getState) => {
+    try {
+      setLoading(true);
+      setErrorMessage("");
+
+      const response = await api.post("/order/users/payments/online", sendData);
+      console.log("API RESPONSE:", response.data);
+      localStorage.removeItem("CHECKOUT_ADDRESS");
+      if (response.data.payment.pgStatus === "succeeded") {
+        dispatch({ type: "SET_ORDER_CONFIRMATION", payload: response.data });
+        localStorage.removeItem("cartItems");
+        localStorage.removeItem("client-secret");
+        dispatch({ type: "REMOVE_CLIENT_SECRET_ADDRESS" });
+        dispatch({ type: "CLEAR_CART" });
+        toast.success("Order Accepted");
+      } else {
+        setErrorMessage("Not able to make api call ");
+      }
+    } catch (error) {
+      console.error("STRIPE CONFIRMATION ERROR:", error);
+      setErrorMessage("Payment Failed. Please try again");
+    } finally {
+      setLoading(false);
+    }
+  };

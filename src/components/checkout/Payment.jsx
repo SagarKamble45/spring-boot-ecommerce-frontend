@@ -8,9 +8,9 @@ import { addPaymentMethod, createUserCart } from "../../store/action/index.js";
 // so they show up in the UI but cannot be selected yet.
 const PAYMENT_OPTIONS = [
   {
-    id: "card",
-    name: "Pay with Card",
-    subtitle: "Powered by Stripe",
+    id: "stripe",
+    name: "Stripe",
+    subtitle: "Secure payments by Stripe",
     icon: MdCreditCard,
     pending: false,
   },

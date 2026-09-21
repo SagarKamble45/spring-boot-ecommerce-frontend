@@ -24,7 +24,7 @@ function Checkout() {
 
   // Payment.jsx owns this slice end-to-end (payment method + card details),
   // Checkout just reads it so it can hand a snapshot to PlaceOrder.
-  const { paymentMethod, cardDetails } = useSelector((state) => state.payment);
+  
 
   // --- Wizard step ---
   const [step, setStep] = useState(0);
@@ -69,8 +69,6 @@ function Checkout() {
     // TODO: wire this up to your order-creation API / redux action
     console.log("Placing order", {
       shipping: selectedAddress,
-      paymentMethod,
-      cardDetails,
       cart,
       total,
     });
@@ -121,8 +119,6 @@ function Checkout() {
           {step === STEP_CONFIRM && (
             <PlaceOrder
               shipping={selectedAddress}
-              paymentMethod={paymentMethod}
-              cardDetails={cardDetails}
               cart={cart}
               total={total}
               onPlaceOrder={handlePlaceOrder}

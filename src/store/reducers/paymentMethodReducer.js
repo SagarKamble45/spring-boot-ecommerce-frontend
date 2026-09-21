@@ -1,7 +1,6 @@
 const initialState = {
     paymentMethod:null,
-    cardDetails:null,
-    
+  
     
 };
 
