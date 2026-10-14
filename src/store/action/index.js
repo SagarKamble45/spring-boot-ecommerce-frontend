@@ -373,7 +373,10 @@ export const createStripePaymentSecret =
   (sendData) => async (dispatch, getState) => {
     try {
       dispatch({ type: "IS_FETCHING" });
-      const { data } = await api.post("/payments/stripe/client-secret",sendData);
+      const { data } = await api.post(
+        "/payments/stripe/client-secret",
+        sendData,
+      );
       dispatch({ type: "CLIENT_SECRET", payload: data });
       localStorage.setItem("client-secret", JSON.stringify(data));
       dispatch({ type: "IS_SUCCESS" });
@@ -412,3 +415,150 @@ export const stripePaymentConfirmation =
       setLoading(false);
     }
   };
+
+export const analyticsAction = () => async (dispatch, getState) => {
+  try {
+    dispatch({ type: "IS_FETCHING" });
+    const { data } = await api.get("/admin/app/analytics");
+    dispatch({
+      type: "FETCH_ANALYTICS",
+      payload: data,
+    });
+    dispatch({ type: "IS_SUCCESS" });
+  } catch (error) {
+    dispatch({
+      type: "IS_ERROR",
+      payload:
+        error?.response?.data?.message || "Failed to fetch analytics data",
+    });
+  }
+};
+
+export const getSalesOverview = () => async (dispatch, getState) => {
+  try {
+    dispatch({ type: "IS_FETCHING" });
+    const { data } = await api.get("/admin/app/sales_summary");
+    dispatch({
+      type: "FETCH_SALESDATA",
+      payload: data,
+    });
+    console.log(data);
+    dispatch({ type: "IS_SUCCESS" });
+  } catch (error) {
+    dispatch({
+      type: "IS_ERROR",
+      payload: error?.response?.data?.message || "Failed to fetch Sales data",
+    });
+  }
+};
+
+export const getOrdersForDashboard =
+  (queryString = "") =>
+  async (dispatch) => {
+    try {
+      dispatch({ type: "IS_FETCHING" });
+      const { data } = await api.get(
+        `/admin/orders${queryString ? `?${queryString}` : ""}`,
+      );
+
+      dispatch({
+        type: "GET_ADMIN_ORDERS",
+        payload: data.content,
+        pageNumber: data.pageNumber,
+        pageSize: data.pageSize,
+        totalElements: data.totalElements,
+        totalPages: data.totalPages,
+        lastPage: data.lastPage,
+      });
+      dispatch({ type: "IS_SUCCESS" });
+    } catch (error) {
+      console.log(error);
+
+      dispatch({
+        type: "IS_ERROR",
+        payload:
+          error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          error?.response?.data ||
+          error?.message ||
+          "Failed to fetch Orders data",
+      });
+    }
+  };
+
+export const updateOrderStatus =
+  (orderId, orderStatus, queryString = "", toast, setLoader) =>
+  async (dispatch) => {
+    console.log("Query: ", queryString);
+    try {
+      setLoader(true);
+
+      const { data } = await api.put(`/admin/orders/${orderId}/status`, {
+        status: orderStatus,
+      });
+
+      toast.success(data.message || "Order updated successfully");
+
+      // Refresh orders and analytics with the same filters/page
+      await dispatch(getOrdersForDashboard(queryString));
+      await dispatch(fetchOrderStats());
+
+      return data;
+    } catch (error) {
+      console.log(error);
+      toast.error(error?.response?.data?.message || "Something went wrong");
+      return error;
+    } finally {
+      setLoader(false);
+    }
+  };
+
+export const fetchOrderStats = () => async (dispatch) => {
+  try {
+    dispatch({ type: "IS_FETCHING" });
+
+    const { data } = await api.get("/admin/orderStats");
+
+    dispatch({
+      type: "FETCH_ORDER_STATS",
+      payload: {
+        TotalRevenue: Number(data.TotalRevenue) || 0,
+        totalOrders: Number(data.totalOrders) || 0,
+        deliveredOrders: Number(data.totalDelivered) || 0,
+        processedOrders: Number(data.totalProcessed) || 0,
+        cancelledOrders: Number(data.cancelledOrders) || 0,
+        pendingOrders: Number(data.pendingOrders) || 0,
+        shippedOrders: Number(data.shippedOrders) || 0,
+      },
+    });
+
+    dispatch({ type: "IS_SUCCESS" });
+  } catch (error) {
+    dispatch({
+      type: "IS_ERROR",
+      payload:
+        error?.response?.data?.message || "Failed to fetch analytics data",
+    });
+  }
+};
+
+export const fetchRecentOrders = () => async (dispatch) => {
+  try {
+    dispatch({ type: "IS_FETCHING" });
+
+    const { data } = await api.get("/admin/orders/recent");
+
+    dispatch({
+      type: "FETCH_RECENT_ORDERS",
+      payload: data,
+    });
+
+    dispatch({ type: "IS_SUCCESS" });
+  } catch (error) {
+    dispatch({
+      type: "IS_ERROR",
+      payload:
+        error?.response?.data?.message || "Failed to fetch analytics data",
+    });
+  }
+};

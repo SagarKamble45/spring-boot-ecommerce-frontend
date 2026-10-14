@@ -9,6 +9,7 @@ import useProductFilter from "../../hooks/useProductFilter";
 import Loader from "../shared/Loader";
 
 import Paginations from "../shared/Paginations";
+import ErrorPage from "../shared/ErrorPage";
 
 const Products = () => {
   const { isLoading, errorMessage } = useSelector((state) => state.errors);
@@ -34,14 +35,7 @@ const Products = () => {
       {isLoading ? (
         <Loader text={"Loading...."} />
       ) : errorMessage ? (
-        <div className="flex flex-col items-center justify-center min-h-[50vh]">
-          <div className="bg-red-50 border border-red-100 rounded-2xl p-8 shadow-sm">
-            <FaExclamationTriangle className="text-red-500 text-4xl mx-auto mb-4" />
-            <span className="text-red-600 text-lg font-medium">
-              {errorMessage}
-            </span>
-          </div>
-        </div>
+        <ErrorPage errorMessage={errorMessage}/>
       ) : (
         <div className="min-h-700px]">
           <div className="pb-6 pt-14 grid 2xl:grid-cols4 lg:grid-cols-4 sm:grid-cols-2 gap-y-6 gap-x-6">

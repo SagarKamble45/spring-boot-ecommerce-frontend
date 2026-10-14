@@ -6,6 +6,7 @@ import {
   FaHeart,
   FaMapMarkerAlt,
   FaSignOutAlt,
+  FaUserShield,
 } from "react-icons/fa";
 import { useDispatch } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
@@ -17,6 +18,7 @@ function UserMenu({ user, onLogout }) {
   const menuRef = useRef(null);
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const isAdmin = user && user?.roles?.includes("ROLE_ADMIN");
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -32,9 +34,10 @@ function UserMenu({ user, onLogout }) {
     };
   }, []);
 
-  const LogOutHandler = () =>{
-    dispatch(logOutUser(navigate, toast))
-  }
+  const LogOutHandler = () => {
+    setIsOpen(false);
+    dispatch(logOutUser(navigate, toast));
+  };
 
   return (
     <div className="relative" ref={menuRef}>
@@ -42,7 +45,7 @@ function UserMenu({ user, onLogout }) {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="
-        w-full md:w-auto
+          w-full md:w-auto
           flex items-center gap-3 justify-center md:justify-start
           px-2 py-1.5
           rounded-full
@@ -83,17 +86,17 @@ function UserMenu({ user, onLogout }) {
         />
       </button>
 
-      {/* Dropdown */}
       <div
         className={`
-          absolute right-0 mt-3 w-72
-          transition-all duration-300
-          ${
-            isOpen
-              ? "opacity-100 visible translate-y-0"
-              : "opacity-0 invisible -translate-y-2"
-          }
-        `}
+    mt-3 w-full
+    md:absolute md:right-0 md:w-72 md:z-50 md:origin-top
+    md:transition-all md:duration-300
+    ${
+      isOpen
+        ? "opacity-100 visible md:scale-y-100"
+        : "hidden md:block opacity-0 invisible md:scale-y-0 pointer-events-none"
+    }
+  `}
       >
         <div
           className="
@@ -125,13 +128,17 @@ function UserMenu({ user, onLogout }) {
               </div>
 
               <div>
-                <p className="font-semibold text-slate-900">
-                  {user?.username}
-                </p>
-
-                <p className="text-xs text-slate-500">
-                  Welcome back 👋
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-slate-900">
+                    {user?.username}
+                  </p>
+                  {isAdmin && (
+                    <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      Admin
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500">Welcome back 👋</p>
               </div>
             </div>
           </div>
@@ -140,7 +147,8 @@ function UserMenu({ user, onLogout }) {
           <div className="py-2">
             <Link
               to="/profile"
-              className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition text-slate-700"
             >
               <FaUser className="text-slate-500" />
               <span>My Profile</span>
@@ -148,7 +156,8 @@ function UserMenu({ user, onLogout }) {
 
             <Link
               to="/orders"
-              className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition text-slate-700"
             >
               <FaBoxOpen className="text-slate-500" />
               <span>My Orders</span>
@@ -156,7 +165,8 @@ function UserMenu({ user, onLogout }) {
 
             <Link
               to="/wishlist"
-              className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition text-slate-700"
             >
               <FaHeart className="text-slate-500" />
               <span>Wishlist</span>
@@ -164,13 +174,28 @@ function UserMenu({ user, onLogout }) {
 
             <Link
               to="/addresses"
-              className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition text-slate-700"
             >
               <FaMapMarkerAlt className="text-slate-500" />
               <span>Addresses</span>
             </Link>
 
-            <div className="border-t border-slate-100 my-2" />
+            {isAdmin && (
+              <>
+                <div className="border-t border-slate-100 my-1" />
+                <Link
+                  to="/admin"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition text-slate-700 font-medium"
+                >
+                  <FaUserShield className="text-blue-600" />
+                  <span>Admin Dashboard</span>
+                </Link>
+              </>
+            )}
+
+            <div className="border-t border-slate-100 my-1" />
 
             <button
               onClick={LogOutHandler}
@@ -182,6 +207,7 @@ function UserMenu({ user, onLogout }) {
                 text-red-600
                 hover:bg-red-50
                 transition
+                font-medium
               "
             >
               <FaSignOutAlt />
