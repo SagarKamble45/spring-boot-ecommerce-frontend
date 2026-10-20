@@ -38,13 +38,8 @@ export const fetchCategories = () => async (dispatch) => {
     dispatch({
       type: "FETCH_CATEGORIES",
       payload: data.content,
-      pageNumber: data.pageNumber,
-      pageSize: data.pageSize,
-      totalElements: data.totalElements,
-      totalPages: data.totalPages,
-      lastPage: data.lastPage,
     });
-    dispatch({ type: "IS_ERROR" });
+    dispatch({ type: "CATEGORY_SUCCESS" }); // was IS_ERROR by mistake
   } catch (error) {
     console.log(error);
 
@@ -562,3 +557,192 @@ export const fetchRecentOrders = () => async (dispatch) => {
     });
   }
 };
+
+
+export const fetchProductsforAdmin = (queryString) => async (dispatch) => {
+  try {
+    // Own loading flag: three admin calls run at once, and the shared
+    // IS_FETCHING / IS_SUCCESS flag can't tell them apart.
+    dispatch({ type: "ADMIN_PRODUCTS_LOADING" });
+    const { data } = await api.get(`/admin/products?${queryString}`);
+
+    dispatch({
+      type: "FETCH_PRODUCTS_ADMIN",
+      payload: data.content,
+      pageNumber: data.pageNumber,
+      pageSize: data.pageSize,
+      totalElements: data.totalElements,
+      totalPages: data.totalPages,
+      lastPage: data.lastPage,
+    });
+  } catch (error) {
+    console.log(error);
+
+    dispatch({
+      type: "ADMIN_PRODUCTS_ERROR",
+      payload:
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        (typeof error?.response?.data === "string" && error.response.data) ||
+        error?.message ||
+        "Failed to fetch products for Admin dashboard",
+    });
+  }
+};
+
+// Every category for dropdowns (admin filter + Add Product form).
+// Stored in `categoryOptions`, so it never touches pagination.
+export const fetchCategoryOptions = () => async (dispatch) => {
+  try {
+    // pageSize is large on purpose: a dropdown needs ALL categories.
+    const { data } = await api.get(
+      "/public/categories?pageNumber=0&pageSize=200",
+    );
+    dispatch({ type: "FETCH_CATEGORY_OPTIONS", payload: data.content ?? [] });
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+// Create a product, then (optionally) upload its image.
+// >>> Match these two URLs to your Spring Boot controller. <<<
+export const addNewProduct =
+  ({ categoryId, product, imageFile }, toast, setLoader) =>
+  async () => {
+    try {
+      setLoader(true);
+
+      const { data: created } = await api.post(
+        `/admin/categories/${categoryId}/product`,
+        product,
+      );
+
+      let result = created;
+      console.log("result:", result)
+
+      if (imageFile) {
+        try {
+          const form = new FormData();
+          form.append("image", imageFile);
+          console.log("in the Create product field", imageFile);
+          const { data: withImage } = await api.put(
+            `/admin/products/${created.productId}/image`,
+            form,
+          );
+          result = withImage;
+        } catch (imageError) {
+          console.log(imageError);
+          toast.error("Product saved, but the image upload failed");
+        }
+      }
+
+      toast.success("Product added successfully");
+      return { ok: true, data: result };
+    } catch (error) {
+      console.log(error);
+      toast.error(
+        error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          (typeof error?.response?.data === "string" && error.response.data) ||
+          "Failed to add product",
+      );
+      return { ok: false };
+    } finally {
+      setLoader(false);
+    }
+  };
+
+export const fetchProductStats = () => async (dispatch) => {
+  try {
+    dispatch({ type: "IS_FETCHING" });
+
+    const { data } = await api.get("/admin/productStats");
+
+    dispatch({
+      type: "FETCH_PRODUCT_STATS",
+      payload: {
+        totalActiveProducts: Number(data.totalActiveProducts) || 0,
+        totalCategories: Number(data.totalCategories) || 0,
+        totalOutOfStockProducts: Number(data.totalOutOfStockProducts) || 0,
+        totalProducts: Number(data.totalProducts) || 0,
+      },
+    });
+
+    dispatch({ type: "IS_SUCCESS" });
+  } catch (error) {
+    dispatch({
+      type: "IS_ERROR",
+      payload:
+        error?.response?.data?.message || "Failed to fetch analytics data",
+    });
+  }
+};
+
+export const fetchRecentProducts = () => async (dispatch) => {
+  try {
+    dispatch({ type: "IS_FETCHING" });
+
+    const { data } = await api.get("/admin/products/recent");
+
+    dispatch({
+      type: "FETCH_RECENT_PRODUCTS",
+      payload: data,
+    });
+
+    dispatch({ type: "IS_SUCCESS" });
+  } catch (error) {
+    dispatch({
+      type: "IS_ERROR",
+      payload:
+        error?.response?.data?.message || "Failed to fetch analytics data",
+    });
+  }
+};
+
+// Update a product, then (optionally) replace its image.
+// >>> Match these two URLs to your Spring Boot controller. <<<
+export const updateProduct =
+  ({ productId, categoryId, product, imageFile }, toast, setLoader) =>
+  async () => {
+    try {
+      setLoader(true);
+ 
+      const { data: updated } = await api.put(
+        `/admin/products/${productId}?categoryId=${categoryId}`,
+        product,
+      );
+ 
+      let result = updated;
+ 
+      if (imageFile) {
+        try {
+          const form = new FormData();
+          form.append("image", imageFile);
+
+          console.log("in the update product field", imageFile);
+          const { data: withImage } = await api.put(
+            `/admin/products/${productId}/image`,
+            form,
+          );
+          result = withImage;
+        } catch (imageError) {
+          console.log(imageError);
+          toast.error("Product updated, but the image upload failed");
+        }
+      }
+ 
+      toast.success("Product updated successfully");
+      return { ok: true, data: result };
+    } catch (error) {
+      console.log(error);
+      toast.error(
+        error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          (typeof error?.response?.data === "string" && error.response.data) ||
+          "Failed to update product",
+      );
+      return { ok: false };
+    } finally {
+      setLoader(false);
+    }
+  };
