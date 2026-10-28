@@ -1,29 +1,35 @@
 import { Calendar, ChevronDown } from "lucide-react";
+import { useDispatch, useSelector } from "react-redux";
+import { useEffect, useState } from "react";
+
 import OrdersStatCards from "./OrdersStatCards";
 import OrdersTable from "./OrdersTable";
 import OrderStatusOverview from "./OrderStatusOverview";
 import RecentOrdersWidget from "./RecentOrdersWidget";
+
 import useOrderFilter from "../../../hooks/useOrderFilter";
-import { useDispatch, useSelector } from "react-redux";
-import {
-  fetchOrderStats,
-  fetchRecentOrders,
-} from "../../../store/action";
-import { useEffect, useState } from "react";
+import { fetchOrderStats, fetchRecentOrders } from "../../../store/action";
+
+import Loader from "../../shared/Loader";
 
 function Orders() {
   const dispatch = useDispatch();
 
   const {
-    adminOrders,
-    pagination,
-    orderStats,
-    recentOrders,
-  } = useSelector((state) => state.order);
+    adminOrders = [],
+    pagination = {},
+    orderStats = {},
+    recentOrders = [],
 
-  const { isloading, errorMessage } = useSelector(
-    (state) => state.errors
-  );
+    ordersLoading,
+    ordersError,
+
+    orderStatsLoading,
+    orderStatsError,
+
+    recentOrdersLoading,
+    recentOrdersError,
+  } = useSelector((state) => state.order);
 
   useOrderFilter();
 
@@ -34,11 +40,17 @@ function Orders() {
 
   const [showAllOrders, setShowAllOrders] = useState(false);
 
+  // Show the full-page loader while initial data is being fetched.
+  const initialLoading =
+    (ordersLoading && adminOrders.length === 0) ||
+    (orderStatsLoading && Object.keys(orderStats).length === 0) ||
+    (recentOrdersLoading && recentOrders.length === 0);
+
+  if (initialLoading) {
+    return <Loader text="Loading orders..." />;
+  }
+
   return (
-    /*
-     * AdminLayout already provides the page background and padding, so no
-     * min-h-screen / p-6 / max-w here (they caused the extra page scroll).
-     */
     <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -59,8 +71,19 @@ function Orders() {
         </button>
       </div>
 
-      {/* Stat cards */}
-      <OrdersStatCards orderStats={orderStats} />
+      {/* Order statistics */}
+      {orderStatsLoading ? (
+        <Loader text="Loading order statistics..." />
+      ) : orderStatsError ? (
+        <div
+          role="alert"
+          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+        >
+          {orderStatsError}
+        </div>
+      ) : (
+        <OrdersStatCards orderStats={orderStats} />
+      )}
 
       {/* Orders table and sidebar */}
       <div
@@ -70,7 +93,6 @@ function Orders() {
             : "xl:h-[calc(100vh-14rem)] xl:min-h-[40rem] xl:grid-cols-[minmax(0,1fr)_20rem] xl:grid-rows-1"
         }`}
       >
-        {/* Expanded orders table */}
         <div className="flex min-h-0 min-w-0 flex-col">
           {showAllOrders && (
             <div className="mb-2 flex items-center justify-end">
@@ -86,25 +108,47 @@ function Orders() {
 
           <OrdersTable
             orders={adminOrders}
-            loading={isloading}
-            error={errorMessage}
+            loading={ordersLoading}
+            error={ordersError}
             pagination={{
-              page: (pagination?.pageNumber ?? 0) + 1,
-              pageSize: pagination?.pageSize,
-              totalElements: pagination?.totalElements,
+              page: (pagination.pageNumber ?? 0) + 1,
+              pageSize: pagination.pageSize,
+              totalElements: pagination.totalElements,
             }}
           />
         </div>
 
-        {/* Hide dashboard widgets when viewing all orders */}
+        {/* Dashboard widgets */}
         {!showAllOrders && (
           <div className="grid content-start gap-4 sm:grid-cols-2 xl:min-h-0 xl:grid-cols-1 xl:overflow-y-auto">
-            <OrderStatusOverview orderStats={orderStats} />
+            {/* Order status overview */}
+            {orderStatsError ? (
+              <div
+                role="alert"
+                className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+              >
+                Order status overview is unavailable.
+              </div>
+            ) : (
+              <OrderStatusOverview orderStats={orderStats} />
+            )}
 
-            <RecentOrdersWidget
-              orders={recentOrders}
-              onViewAll={() => setShowAllOrders(true)}
-            />
+            {/* Recent orders */}
+            {recentOrdersLoading ? (
+              <Loader text="Loading recent orders..." />
+            ) : recentOrdersError ? (
+              <div
+                role="alert"
+                className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+              >
+                {recentOrdersError}
+              </div>
+            ) : (
+              <RecentOrdersWidget
+                orders={recentOrders}
+                onViewAll={() => setShowAllOrders(true)}
+              />
+            )}
           </div>
         )}
       </div>

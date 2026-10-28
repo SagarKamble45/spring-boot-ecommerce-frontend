@@ -1,22 +1,31 @@
+
 const initialState = {
-  // storefront
+  // Storefront products
   products: [],
-  categories: [],
   pagination: {},
 
-  // admin products page (kept separate so the storefront and admin
-  // never overwrite each other's pagination)
+  // Admin products
   adminProducts: [],
   adminPagination: {},
   adminProductsLoading: false,
   adminProductsError: null,
-  categoryOptions: [], // every category, used by the filter + Add Product dropdowns
+
+  // Product statistics
   productStats: {},
+  productStatsLoading: false,
+  productStatsError: null,
+
+  // Recent products
   recentProducts: [],
+  recentProductsLoading: false,
+  recentProductsError: null,
 };
 
 export const ProductReducer = (state = initialState, action) => {
   switch (action.type) {
+    // ----------------------------------
+    // Storefront products
+    // ----------------------------------
     case "FETCH_PRODUCTS":
       return {
         ...state,
@@ -31,14 +40,14 @@ export const ProductReducer = (state = initialState, action) => {
         },
       };
 
+    // ----------------------------------
+    // Admin products
+    // ----------------------------------
     case "ADMIN_PRODUCTS_LOADING":
-      return { ...state, adminProductsLoading: true, adminProductsError: null };
-
-    case "ADMIN_PRODUCTS_ERROR":
       return {
         ...state,
-        adminProductsLoading: false,
-        adminProductsError: action.payload,
+        adminProductsLoading: true,
+        adminProductsError: null,
       };
 
     case "FETCH_PRODUCTS_ADMIN":
@@ -56,19 +65,89 @@ export const ProductReducer = (state = initialState, action) => {
         },
       };
 
+    case "ADMIN_PRODUCTS_ERROR":
+      return {
+        ...state,
+        adminProductsLoading: false,
+        adminProductsError: action.payload,
+      };
+
+    // ----------------------------------
+    // Product statistics
+    // ----------------------------------
+    case "PRODUCT_STATS_LOADING":
+      return {
+        ...state,
+        productStatsLoading: true,
+        productStatsError: null,
+      };
+
     case "FETCH_PRODUCT_STATS":
-      return { ...state, productStats: action.payload };
+      return {
+        ...state,
+        productStats: action.payload,
+        productStatsLoading: false,
+        productStatsError: null,
+      };
+
+    case "PRODUCT_STATS_ERROR":
+      return {
+        ...state,
+        productStatsLoading: false,
+        productStatsError: action.payload,
+      };
+
+    // ----------------------------------
+    // Recent products
+    // ----------------------------------
+    case "RECENT_PRODUCTS_LOADING":
+      return {
+        ...state,
+        recentProductsLoading: true,
+        recentProductsError: null,
+      };
 
     case "FETCH_RECENT_PRODUCTS":
-      return { ...state, recentProducts: action.payload };
+      return {
+        ...state,
+        recentProducts: action.payload,
+        recentProductsLoading: false,
+        recentProductsError: null,
+      };
 
-    // Storefront category list. NOTE: no longer touches `pagination`
-    // (it used to overwrite the products pagination).
-    case "FETCH_CATEGORIES":
-      return { ...state, categories: action.payload };
+    case "RECENT_PRODUCTS_ERROR":
+      return {
+        ...state,
+        recentProductsLoading: false,
+        recentProductsError: action.payload,
+      };
 
-    case "FETCH_CATEGORY_OPTIONS":
-      return { ...state, categoryOptions: action.payload };
+    // ----------------------------------
+    // Product deletion
+    // ----------------------------------
+    case "DELETING_PRODUCT": {
+      const id = action.payload;
+
+      const matches = (product) =>
+        (product.productId ?? product.id) === id;
+
+      return {
+        ...state,
+        adminProducts: state.adminProducts.filter(
+          (product) => !matches(product)
+        ),
+        recentProducts: state.recentProducts.filter(
+          (product) => !matches(product)
+        ),
+        adminPagination: {
+          ...state.adminPagination,
+          totalElements: Math.max(
+            0,
+            (state.adminPagination.totalElements ?? 1) - 1
+          ),
+        },
+      };
+    }
 
     default:
       return state;

@@ -30,30 +30,232 @@ export const fetchProducts = (queryString) => async (dispatch) => {
   }
 };
 
-export const fetchCategories = () => async (dispatch) => {
+export const fetchCategories = (
+  queryOrPage = "pageNumber=0&pageSize=10",
+  pageSize = 10,
+) => async (dispatch) => {
   try {
-    dispatch({ type: "CATEGORY_LOADER" });
-    const { data } = await api.get(`/public/categories`);
+    dispatch({ type: "CATEGORY_LOADING" });
+
+    const queryString =
+      typeof queryOrPage === "string"
+        ? queryOrPage
+        : new URLSearchParams({
+            pageNumber: String(queryOrPage),
+            pageSize: String(pageSize),
+          }).toString();
+
+    console.log(queryString);
+    
+    const response = await api.get(
+      `/public/categories?${queryString}`,
+    );
 
     dispatch({
-      type: "FETCH_CATEGORIES",
-      payload: data.content,
+      type: "FETCH_ADMIN_CATEGORIES",
+      payload: response.data,
     });
-    dispatch({ type: "CATEGORY_SUCCESS" }); // was IS_ERROR by mistake
+
+    return response.data;
   } catch (error) {
-    console.log(error);
+    const message =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      error?.message ||
+      "Failed to fetch categories";
 
     dispatch({
-      type: "IS_ERROR",
+      type: "CATEGORY_ERROR",
+      payload: message,
+    });
+
+    return null;
+  }
+};
+
+export const fetchCategoryDistribution = () => async (dispatch) => {
+  dispatch({ type: "CATEGORY_DISTRIBUTION_LOADING" });
+
+  try {
+    const { data } = await api.get("/admin/categoryDistribution");
+
+    dispatch({
+      type: "FETCH_CATEGORY_DISTRIBUTION",
+      payload: data,
+    });
+  } catch (error) {
+    dispatch({
+      type: "CATEGORY_DISTRIBUTION_ERROR",
       payload:
         error?.response?.data?.message ||
         error?.response?.data?.error ||
-        error?.response?.data ||
         error?.message ||
-        "Failed to fetch categories",
+        "Failed to fetch category distribution",
     });
   }
 };
+
+
+const getCategoryErrorMessage = (error, fallback) =>
+  error?.response?.data?.message ||
+  error?.response?.data?.error ||
+  (typeof error?.response?.data === "string" ? error.response.data : null) ||
+  error?.message ||
+  fallback;
+
+// Create Category
+export const createCategory = (categoryData, toast) => async (dispatch) => {
+  dispatch({ type: "CATEGORY_LOADING" });
+
+  try {
+    const payload = {
+      categoryName: categoryData.categoryName.trim(),
+      categoryDescription: categoryData.categoryDescription?.trim() || "",
+    };
+
+    if (categoryData.categoryStatus) {
+      payload.categoryStatus = categoryData.categoryStatus;
+    }
+
+    const { data } = await api.post("/public/categories", payload);
+
+    toast?.success("Category created successfully");
+
+    await dispatch(fetchCategories());
+
+    return { ok: true, data };
+  } catch (error) {
+    const message = getCategoryErrorMessage(error, "Failed to create category");
+
+    dispatch({
+      type: "CATEGORY_ERROR",
+      payload: message,
+    });
+
+    toast?.error(message);
+
+    return { ok: false, error: message };
+  }
+};
+
+
+
+export const fetchCategoryStats = () => async (dispatch) => {
+  try {
+    dispatch({ type: "CATEGORY_STATS_LOADING" });
+
+    const response = await api.get("/admin/categoryStats");
+
+    dispatch({
+      type: "FETCH_CATEGORY_STATS",
+      payload: response.data,
+    });
+
+    return response.data;
+  } catch (error) {
+    const message =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      error?.message ||
+      "Failed to fetch category statistics";
+
+    dispatch({
+      type: "CATEGORY_STATS_ERROR",
+      payload: message,
+    });
+
+    return null;
+  }
+};
+
+
+// UPDATE CATEGORY
+export const updateCategory =
+  (categoryId, categoryData, toast) => async (dispatch) => {
+    dispatch({ type: "CATEGORY_LOADING" });
+
+    try {
+      const payload = {};
+
+      // Update name only when provided
+      if (
+        typeof categoryData.categoryName === "string" &&
+        categoryData.categoryName.trim() !== ""
+      ) {
+        payload.categoryName = categoryData.categoryName.trim();
+      }
+
+      // Map the frontend description field to UpdateCategoryDTO
+      if (Object.hasOwn(categoryData, "description")) {
+        payload.categoryDescription = categoryData.description;
+      } else if (Object.hasOwn(categoryData, "categoryDescription")) {
+        payload.categoryDescription = categoryData.categoryDescription;
+      }
+
+      // Update status only when provided
+      if (categoryData.categoryStatus != null) {
+        payload.categoryStatus = categoryData.categoryStatus;
+      }
+
+      const { data } = await api.put(
+        `/admin/categories/${categoryId}`,
+        payload,
+      );
+
+      toast?.success("Category updated successfully");
+
+      await dispatch(fetchCategories());
+
+      return { ok: true, data };
+    } catch (error) {
+      const message = getCategoryErrorMessage(
+        error,
+        "Failed to update category",
+      );
+
+      dispatch({
+        type: "CATEGORY_ERROR",
+        payload: message,
+      });
+
+      toast?.error(message);
+
+      return { ok: false, error: message };
+    }
+  };
+
+// DELETE CATEGORY
+export const deleteCategory = (categoryId, toast) => async (dispatch) => {
+  dispatch({ type: "CATEGORY_LOADING" });
+
+  try {
+    const { data } = await api.delete(`/admin/categories/${categoryId}`);
+
+    toast?.success("Category deleted successfully");
+
+    await dispatch(fetchCategories());
+
+    return { ok: true, data };
+  } catch (error) {
+    const message = getCategoryErrorMessage(error, "Failed to delete category");
+
+    dispatch({
+      type: "CATEGORY_ERROR",
+      payload: message,
+    });
+
+    toast?.error(message);
+
+    return { ok: false, error: message };
+  }
+};
+
+const getCategoryError = (error) =>
+  error?.response?.data?.message ||
+  error?.response?.data?.error ||
+  (typeof error?.response?.data === "string" ? error.response.data : null) ||
+  error?.message ||
+  "Something went wrong with categories";
 
 export const addToCart =
   (data, qty = 1, toast) =>
@@ -411,38 +613,48 @@ export const stripePaymentConfirmation =
     }
   };
 
-export const analyticsAction = () => async (dispatch, getState) => {
+export const analyticsAction = () => async (dispatch) => {
+  dispatch({ type: "ANALYTICS_FETCHING" });
+
   try {
-    dispatch({ type: "IS_FETCHING" });
     const { data } = await api.get("/admin/app/analytics");
+
     dispatch({
       type: "FETCH_ANALYTICS",
       payload: data,
     });
-    dispatch({ type: "IS_SUCCESS" });
+
+    dispatch({ type: "ANALYTICS_SUCCESS" });
   } catch (error) {
     dispatch({
-      type: "IS_ERROR",
+      type: "ANALYTICS_ERROR",
       payload:
-        error?.response?.data?.message || "Failed to fetch analytics data",
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        "Failed to fetch analytics data",
     });
   }
 };
 
-export const getSalesOverview = () => async (dispatch, getState) => {
+export const getSalesOverview = () => async (dispatch) => {
+  dispatch({ type: "SALES_OVERVIEW_FETCHING" });
+
   try {
-    dispatch({ type: "IS_FETCHING" });
     const { data } = await api.get("/admin/app/sales_summary");
+
     dispatch({
       type: "FETCH_SALESDATA",
       payload: data,
     });
-    console.log(data);
-    dispatch({ type: "IS_SUCCESS" });
+
+    dispatch({ type: "SALES_OVERVIEW_SUCCESS" });
   } catch (error) {
     dispatch({
-      type: "IS_ERROR",
-      payload: error?.response?.data?.message || "Failed to fetch Sales data",
+      type: "SALES_OVERVIEW_ERROR",
+      payload:
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        "Failed to fetch Sales data",
     });
   }
 };
@@ -451,7 +663,7 @@ export const getOrdersForDashboard =
   (queryString = "") =>
   async (dispatch) => {
     try {
-      dispatch({ type: "IS_FETCHING" });
+      dispatch({ type: "ORDERS_LOADING" });
       const { data } = await api.get(
         `/admin/orders${queryString ? `?${queryString}` : ""}`,
       );
@@ -465,12 +677,9 @@ export const getOrdersForDashboard =
         totalPages: data.totalPages,
         lastPage: data.lastPage,
       });
-      dispatch({ type: "IS_SUCCESS" });
     } catch (error) {
-      console.log(error);
-
       dispatch({
-        type: "IS_ERROR",
+        type: "ORDERS_ERROR",
         payload:
           error?.response?.data?.message ||
           error?.response?.data?.error ||
@@ -510,7 +719,7 @@ export const updateOrderStatus =
 
 export const fetchOrderStats = () => async (dispatch) => {
   try {
-    dispatch({ type: "IS_FETCHING" });
+    dispatch({ type: "ORDER_STATS_LOADING" });
 
     const { data } = await api.get("/admin/orderStats");
 
@@ -526,81 +735,124 @@ export const fetchOrderStats = () => async (dispatch) => {
         shippedOrders: Number(data.shippedOrders) || 0,
       },
     });
-
-    dispatch({ type: "IS_SUCCESS" });
+    return data;
   } catch (error) {
+    const message =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      error?.message ||
+      "Failed to fetch order statistics";
+
     dispatch({
-      type: "IS_ERROR",
-      payload:
-        error?.response?.data?.message || "Failed to fetch analytics data",
+      type: "ORDER_STATS_ERROR",
+      payload: message,
     });
+
+    return null;
   }
 };
 
 export const fetchRecentOrders = () => async (dispatch) => {
   try {
-    dispatch({ type: "IS_FETCHING" });
+    dispatch({ type: "RECENT_ORDERS_LOADING" });
 
     const { data } = await api.get("/admin/orders/recent");
 
     dispatch({
       type: "FETCH_RECENT_ORDERS",
-      payload: data,
+      payload: Array.isArray(data) ? data : [],
     });
 
-    dispatch({ type: "IS_SUCCESS" });
+    return data;
   } catch (error) {
+    const message =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      error?.message ||
+      "Failed to fetch recent orders";
+
     dispatch({
-      type: "IS_ERROR",
-      payload:
-        error?.response?.data?.message || "Failed to fetch analytics data",
+      type: "RECENT_ORDERS_ERROR",
+      payload: message,
     });
+
+    return null;
   }
 };
 
-
-export const fetchProductsforAdmin = (queryString) => async (dispatch) => {
-  try {
-    // Own loading flag: three admin calls run at once, and the shared
-    // IS_FETCHING / IS_SUCCESS flag can't tell them apart.
+export const fetchProductsforAdmin =
+  (queryString = "") =>
+  async (dispatch) => {
     dispatch({ type: "ADMIN_PRODUCTS_LOADING" });
-    const { data } = await api.get(`/admin/products?${queryString}`);
 
-    dispatch({
-      type: "FETCH_PRODUCTS_ADMIN",
-      payload: data.content,
-      pageNumber: data.pageNumber,
-      pageSize: data.pageSize,
-      totalElements: data.totalElements,
-      totalPages: data.totalPages,
-      lastPage: data.lastPage,
-    });
-  } catch (error) {
-    console.log(error);
+    try {
+      const { data } = await api.get(`/admin/products?${queryString}`);
 
-    dispatch({
-      type: "ADMIN_PRODUCTS_ERROR",
-      payload:
+      dispatch({
+        type: "FETCH_PRODUCTS_ADMIN",
+        payload: data.content,
+        pageNumber: data.pageNumber,
+        pageSize: data.pageSize,
+        totalElements: data.totalElements,
+        totalPages: data.totalPages,
+        lastPage: data.lastPage,
+      });
+
+      return data;
+    } catch (error) {
+      const message =
         error?.response?.data?.message ||
         error?.response?.data?.error ||
-        (typeof error?.response?.data === "string" && error.response.data) ||
+        (typeof error?.response?.data === "string"
+          ? error.response.data
+          : null) ||
         error?.message ||
-        "Failed to fetch products for Admin dashboard",
-    });
-  }
-};
+        "Failed to fetch products for Admin dashboard";
+
+      dispatch({
+        type: "ADMIN_PRODUCTS_ERROR",
+        payload: message,
+      });
+
+      return null;
+    }
+  };
 
 // Every category for dropdowns (admin filter + Add Product form).
 // Stored in `categoryOptions`, so it never touches pagination.
+
 export const fetchCategoryOptions = () => async (dispatch) => {
+  dispatch({ type: "CATEGORY_OPTIONS_LOADING" });
+
   try {
-    // pageSize is large on purpose: a dropdown needs ALL categories.
     const { data } = await api.get(
       "/public/categories?pageNumber=0&pageSize=200",
     );
-    dispatch({ type: "FETCH_CATEGORY_OPTIONS", payload: data.content ?? [] });
+
+    const categories = Array.isArray(data?.content) ? data.content : [];
+
+    dispatch({
+      type: "FETCH_CATEGORY_OPTIONS",
+      payload: categories,
+    });
+
+    return categories;
   } catch (error) {
-    console.log(error);
+    const message =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      (typeof error?.response?.data === "string"
+        ? error.response.data
+        : null) ||
+      error?.message ||
+      "Failed to fetch category options";
+
+    dispatch({
+      type: "CATEGORY_OPTIONS_ERROR",
+      payload: message,
+    });
+
+    return null;
   }
 };
 
@@ -618,7 +870,7 @@ export const addNewProduct =
       );
 
       let result = created;
-      console.log("result:", result)
+      console.log("result:", result);
 
       if (imageFile) {
         try {
@@ -653,49 +905,71 @@ export const addNewProduct =
   };
 
 export const fetchProductStats = () => async (dispatch) => {
-  try {
-    dispatch({ type: "IS_FETCHING" });
+  dispatch({ type: "PRODUCT_STATS_LOADING" });
 
+  try {
     const { data } = await api.get("/admin/productStats");
 
     dispatch({
       type: "FETCH_PRODUCT_STATS",
       payload: {
-        totalActiveProducts: Number(data.totalActiveProducts) || 0,
-        totalCategories: Number(data.totalCategories) || 0,
-        totalOutOfStockProducts: Number(data.totalOutOfStockProducts) || 0,
-        totalProducts: Number(data.totalProducts) || 0,
+        totalActiveProducts: Number(data?.totalActiveProducts) || 0,
+        totalCategories: Number(data?.totalCategories) || 0,
+        totalOutOfStockProducts: Number(data?.totalOutOfStockProducts) || 0,
+        totalProducts: Number(data?.totalProducts) || 0,
       },
     });
 
-    dispatch({ type: "IS_SUCCESS" });
+    return data;
   } catch (error) {
+    const message =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      (typeof error?.response?.data === "string"
+        ? error.response.data
+        : null) ||
+      error?.message ||
+      "Failed to fetch product statistics";
+
     dispatch({
-      type: "IS_ERROR",
-      payload:
-        error?.response?.data?.message || "Failed to fetch analytics data",
+      type: "PRODUCT_STATS_ERROR",
+      payload: message,
     });
+
+    return null;
   }
 };
 
 export const fetchRecentProducts = () => async (dispatch) => {
-  try {
-    dispatch({ type: "IS_FETCHING" });
+  dispatch({ type: "RECENT_PRODUCTS_LOADING" });
 
+  try {
     const { data } = await api.get("/admin/products/recent");
+
+    const products = Array.isArray(data) ? data : [];
 
     dispatch({
       type: "FETCH_RECENT_PRODUCTS",
-      payload: data,
+      payload: products,
     });
 
-    dispatch({ type: "IS_SUCCESS" });
+    return products;
   } catch (error) {
+    const message =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      (typeof error?.response?.data === "string"
+        ? error.response.data
+        : null) ||
+      error?.message ||
+      "Failed to fetch recent products";
+
     dispatch({
-      type: "IS_ERROR",
-      payload:
-        error?.response?.data?.message || "Failed to fetch analytics data",
+      type: "RECENT_PRODUCTS_ERROR",
+      payload: message,
     });
+
+    return null;
   }
 };
 
@@ -706,14 +980,14 @@ export const updateProduct =
   async () => {
     try {
       setLoader(true);
- 
+
       const { data: updated } = await api.put(
         `/admin/products/${productId}?categoryId=${categoryId}`,
         product,
       );
- 
+
       let result = updated;
- 
+
       if (imageFile) {
         try {
           const form = new FormData();
@@ -730,7 +1004,7 @@ export const updateProduct =
           toast.error("Product updated, but the image upload failed");
         }
       }
- 
+
       toast.success("Product updated successfully");
       return { ok: true, data: result };
     } catch (error) {
@@ -746,3 +1020,22 @@ export const updateProduct =
       setLoader(false);
     }
   };
+
+export const deleteProduct = (product, toast) => async (dispatch) => {
+  const productId = product?.productId ?? product?.id;
+  const productName = product?.productName ?? product?.name ?? "Product";
+  try {
+    dispatch({ type: "IS_FETCHING" });
+    await api.delete(`/admin/product/${productId}`);
+    dispatch({ type: "DELETING_PRODUCT", payload: productId });
+    dispatch({ type: "IS_SUCCESS" });
+    toast.success(`"${productName}" deleted successfully`);
+    return true;
+  } catch (error) {
+    const message =
+      error?.response?.data?.message || "Failed to delete product";
+    dispatch({ type: "IS_ERROR", payload: message });
+    toast.error(message);
+    return false;
+  }
+};
