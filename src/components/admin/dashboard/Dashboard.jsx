@@ -12,7 +12,16 @@ import ErrorPage from "../../shared/ErrorPage";
 
 function Dashboard() {
   const dispatch = useDispatch();
-  const { isloading, errorMessage } = useSelector((state) => state.errors);
+
+  const {
+  analyticsLoading,
+  analyticsError,
+  salesOverviewLoading,
+  salesOverviewError,
+} = useSelector((state) => state.errors);
+
+
+  
   const name = useSelector((state)=>state.auth.user.username);
 
   const { analytics: { productCount, totalRevenue, totalOrders, totalCustomers } } = useSelector((state) => state.admin);
@@ -24,12 +33,18 @@ const { salesOverview  } = useSelector((state) => state.admin);
 
   }, [dispatch]);
 
-  if (isloading) {
+  const isDashboardLoading =
+  analyticsLoading || salesOverviewLoading;
+
+const dashboardError =
+  analyticsError || salesOverviewError;
+
+  if (isDashboardLoading) {
     return <Loader />;
   }
 
-  if (errorMessage) {
-    return <ErrorPage errorMessage={errorMessage} />;
+  if (dashboardError) {
+    return <ErrorPage errorMessage={dashboardError} />;
   }
 
   return (

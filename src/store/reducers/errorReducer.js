@@ -1,13 +1,26 @@
+
 const initialState = {
+  // Existing global loading state
   isLoading: false,
   errorMessage: null,
+
+  // Existing category loading state
   categoryLoader: false,
-  cateoryError: null,
+  categoryError: null,
+
+  // Dashboard: independent API states
+  analyticsLoading: true,
+  analyticsError: null,
+
+  salesOverviewLoading: true,
+  salesOverviewError: null,
 };
 
 export const errorReducer = (state = initialState, action) => {
   switch (action.type) {
-    case "IS_FECTHING":
+    // Existing global loading actions.
+    // Support both spellings to avoid breaking older calls.
+    case "IS_FETCHING":
       return {
         ...state,
         isLoading: true,
@@ -28,6 +41,14 @@ export const errorReducer = (state = initialState, action) => {
         errorMessage: action.payload,
       };
 
+    // Existing category loading actions
+    case "CATEGORY_LOADER":
+      return {
+        ...state,
+        categoryLoader: true,
+        categoryError: null,
+      };
+
     case "CATEGORY_SUCCESS":
       return {
         ...state,
@@ -35,12 +56,55 @@ export const errorReducer = (state = initialState, action) => {
         categoryError: null,
       };
 
-    case "CATEGORY_LOADER":
+    case "CATEGORY_ERROR":
       return {
         ...state,
-        categoryLoader:true,
-        categoryError: null,
-        errorMessage: null,
+        categoryLoader: false,
+        categoryError: action.payload,
+      };
+
+    // Dashboard Analytics API
+    case "ANALYTICS_FETCHING":
+      return {
+        ...state,
+        analyticsLoading: true,
+        analyticsError: null,
+      };
+
+    case "ANALYTICS_SUCCESS":
+      return {
+        ...state,
+        analyticsLoading: false,
+        analyticsError: null,
+      };
+
+    case "ANALYTICS_ERROR":
+      return {
+        ...state,
+        analyticsLoading: false,
+        analyticsError: action.payload,
+      };
+
+    // Dashboard Sales Summary API
+    case "SALES_OVERVIEW_FETCHING":
+      return {
+        ...state,
+        salesOverviewLoading: true,
+        salesOverviewError: null,
+      };
+
+    case "SALES_OVERVIEW_SUCCESS":
+      return {
+        ...state,
+        salesOverviewLoading: false,
+        salesOverviewError: null,
+      };
+
+    case "SALES_OVERVIEW_ERROR":
+      return {
+        ...state,
+        salesOverviewLoading: false,
+        salesOverviewError: action.payload,
       };
 
     default:
