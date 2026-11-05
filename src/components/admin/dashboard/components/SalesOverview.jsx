@@ -10,8 +10,7 @@ import {
   Tooltip,
 } from "recharts";
 import { RefreshCw } from "lucide-react";
-
-import FeatureError from "../shared/FeatureError";
+import FeatureError from "../../shared/FeatureError";
 
 function SalesOverview({
   salesData = [],

@@ -1,32 +1,32 @@
-
 import React, { useEffect } from "react";
-import {
-  ShoppingCart,
-  Package,
-  Users,
-  Box,
-  RefreshCw,
-} from "lucide-react";
-
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { ShoppingCart, Package, Users, Box, RefreshCw } from "lucide-react";
 
-import DashboardOverview from "./DashboardOverview";
-import SalesOverview from "./SalesOverview";
-import RecentOrders from "./RecentOrders";
-import QuickActions from "./QuickActions";
+import DashboardOverview from "./components/DashboardOverview";
+import SalesOverview from "./components/SalesOverview";
+import QuickActions from "./components/QuickActions";
+import TopCategories from "./components/TopCategories";
+
+import RecentOrdersWidget from "../orders/RecentOrdersWidget";
+import OrderStatusOverview from "../orders/OrderStatusOverview";
 import FeatureError from "../shared/FeatureError";
+
+import DashboardHeader from "./components/DashboardHeader";
 
 import {
   analyticsAction,
   getSalesOverview,
+  fetchOrderStats,
+  fetchRecentOrders,
+  fetchCategoryDistribution,
 } from "../../../store/action";
 
 function Dashboard() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
-  const name = useSelector(
-    (state) => state.auth.user?.username || "Admin"
-  );
+  const name = useSelector((state) => state.auth.user?.username || "Admin");
 
   const {
     analytics = {},
@@ -38,28 +38,51 @@ function Dashboard() {
   } = useSelector((state) => state.admin);
 
   const {
-    productCount,
-    totalRevenue,
-    totalOrders,
-    totalCustomers,
-  } = analytics;
+    orderStats = {},
+    orderStatsLoading,
+    orderStatsError,
+    recentOrders = [],
+    recentOrdersLoading,
+    recentOrdersError,
+  } = useSelector((state) => state.order);
 
-  const hasAnalytics = Object.keys(analytics ?? {}).length > 0;
+  const {
+    categoryDistribution = [],
+    categoryDistributionLoading,
+    categoryDistributionError,
+  } = useSelector((state) => state.category);
+
+  const { productCount, totalRevenue, totalOrders, totalCustomers } = analytics;
+
+  const hasAnalytics = Object.keys(analytics).length > 0;
 
   useEffect(() => {
     dispatch(analyticsAction());
     dispatch(getSalesOverview());
+    dispatch(fetchOrderStats());
+    dispatch(fetchRecentOrders());
+    dispatch(fetchCategoryDistribution());
   }, [dispatch]);
 
   const retryAnalytics = () => {
-    if (!analyticsLoading) {
-      dispatch(analyticsAction());
-    }
+    if (!analyticsLoading) dispatch(analyticsAction());
   };
 
   const retrySales = () => {
-    if (!salesOverviewLoading) {
-      dispatch(getSalesOverview());
+    if (!salesOverviewLoading) dispatch(getSalesOverview());
+  };
+
+  const retryOrderStats = () => {
+    if (!orderStatsLoading) dispatch(fetchOrderStats());
+  };
+
+  const retryRecentOrders = () => {
+    if (!recentOrdersLoading) dispatch(fetchRecentOrders());
+  };
+
+  const retryCategories = () => {
+    if (!categoryDistributionLoading) {
+      dispatch(fetchCategoryDistribution());
     }
   };
 
@@ -71,114 +94,83 @@ function Dashboard() {
 
   return (
     <div className="space-y-6">
-
       {/* Dashboard Header */}
-      <div>
-        <p className="text-gray-400 text-sm">
-          Welcome back,
-        </p>
+      <DashboardHeader
+        name={name}
+        today={today}
+        onRefresh={() => {
+          retryAnalytics();
+          retrySales();
+          retryOrderStats();
+          retryRecentOrders();
+          retryCategories();
+        }}
+        refreshing={
+          analyticsLoading ||
+          salesOverviewLoading ||
+          orderStatsLoading ||
+          recentOrdersLoading ||
+          categoryDistributionLoading
+        }
+      />
 
-        <h1 className="text-2xl font-semibold text-slate-900">
-          {name}
-        </h1>
-
-        <p className="mt-0.5 text-sm text-slate-500">
-          Here's what's happening with your store today.
-        </p>
-
-        <p className="text-xs text-gray-400 mt-1">
-          {today}
-        </p>
-      </div>
-
-      {/* Store Overview */}
+      {/* KPI Cards */}
       <section>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">
-              Store Overview
-            </h2>
-
-            <p className="text-sm text-slate-500 mt-0.5">
-              Your store's key performance metrics.
-            </p>
-          </div>
-
-          {/* One refresh button for all four cards */}
-          <button
-            type="button"
-            onClick={retryAnalytics}
-            disabled={analyticsLoading}
-            title="Refresh statistics"
-            aria-label="Refresh statistics"
-            className="p-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <RefreshCw
-              size={17}
-              className={analyticsLoading ? "animate-spin" : ""}
-            />
-          </button>
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-slate-900">
+            Store Overview
+          </h2>
+          <p className="text-sm text-slate-500">
+            Your store's key performance metrics.
+          </p>
         </div>
 
-        {/* One shared error instead of four card errors */}
         {analyticsError && (
           <div className="mb-4">
             <FeatureError
               title="Unable to load store statistics"
               message={String(analyticsError)}
+              onRetry={retryAnalytics}
               compact
             />
           </div>
         )}
 
-        {/* Statistics cards */}
-        {analyticsLoading && !hasAnalytics ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {["orders", "revenue", "customers", "products"].map((item) => (
-              <DashboardOverview
-                key={item}
-                loading
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <DashboardOverview
-              title="Total Orders"
-              amount={totalOrders}
-              loading={analyticsLoading}
-              icon={<ShoppingCart size={20} />}
-            />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <DashboardOverview
+            title="Total Revenue"
+            amount={totalRevenue}
+            revenue
+            loading={analyticsLoading}
+            icon={<Box size={20} />}
+          />
 
-            <DashboardOverview
-              title="Total Revenue"
-              amount={totalRevenue}
-              revenue
-              loading={analyticsLoading}
-              icon={<Box size={20} />}
-            />
+          <DashboardOverview
+            title="Total Orders"
+            amount={totalOrders}
+            loading={analyticsLoading}
+            icon={<ShoppingCart size={20} />}
+          />
 
-            <DashboardOverview
-              title="Total Customers"
-              amount={totalCustomers}
-              loading={analyticsLoading}
-              icon={<Users size={20} />}
-            />
+          <DashboardOverview
+            title="Total Customers"
+            amount={totalCustomers}
+            loading={analyticsLoading}
+            icon={<Users size={20} />}
+          />
 
-            <DashboardOverview
-              title="Total Products"
-              amount={productCount}
-              loading={analyticsLoading}
-              icon={<Package size={20} />}
-            />
-          </div>
-        )}
+          <DashboardOverview
+            title="Total Products"
+            amount={productCount}
+            loading={analyticsLoading}
+            icon={<Package size={20} />}
+          />
+        </div>
       </section>
 
-      {/* Sales Overview and Recent Orders */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        <div className="lg:col-span-2">
+      {/* Sales and Order Status */}
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-5">
+        <div className="min-w-0 xl:col-span-3">
           <SalesOverview
             salesData={salesOverview}
             loading={salesOverviewLoading}
@@ -187,15 +179,42 @@ function Dashboard() {
           />
         </div>
 
-        <div>
-          <RecentOrders />
+        <div className="min-w-0 xl:col-span-2">
+          <OrderStatusOverview
+            orderStats={orderStats}
+            loading={orderStatsLoading}
+            error={orderStatsError}
+            onRetry={retryOrderStats}
+          />
+        </div>
+      </section>
+
+      {/* Quick Actions, Recent Orders and Categories */}
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="min-w-0">
+          <QuickActions />
         </div>
 
-      </div>
+        <div className="min-w-0">
+          <RecentOrdersWidget
+            orders={recentOrders}
+            loading={recentOrdersLoading}
+            error={recentOrdersError}
+            onRetry={retryRecentOrders}
+            onViewAll={() => navigate("/admin/orders")}
+          />
+        </div>
 
-      {/* Quick Actions */}
-      <QuickActions />
-
+        <div className="min-w-0">
+          <TopCategories
+            categories={categoryDistribution}
+            loading={categoryDistributionLoading}
+            error={categoryDistributionError}
+            onRetry={retryCategories}
+            onViewAll={() => navigate("/admin/categories")}
+          />
+        </div>
+      </section>
     </div>
   );
 }
