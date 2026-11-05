@@ -30,48 +30,45 @@ export const fetchProducts = (queryString) => async (dispatch) => {
   }
 };
 
-export const fetchCategories = (
-  queryOrPage = "pageNumber=0&pageSize=10",
-  pageSize = 10,
-) => async (dispatch) => {
-  try {
-    dispatch({ type: "CATEGORY_LOADING" });
+export const fetchCategories =
+  (queryOrPage = "pageNumber=0&pageSize=10", pageSize = 10) =>
+  async (dispatch) => {
+    try {
+      dispatch({ type: "CATEGORY_LOADING" });
 
-    const queryString =
-      typeof queryOrPage === "string"
-        ? queryOrPage
-        : new URLSearchParams({
-            pageNumber: String(queryOrPage),
-            pageSize: String(pageSize),
-          }).toString();
+      const queryString =
+        typeof queryOrPage === "string"
+          ? queryOrPage
+          : new URLSearchParams({
+              pageNumber: String(queryOrPage),
+              pageSize: String(pageSize),
+            }).toString();
 
-    console.log(queryString);
-    
-    const response = await api.get(
-      `/public/categories?${queryString}`,
-    );
+      console.log(queryString);
 
-    dispatch({
-      type: "FETCH_ADMIN_CATEGORIES",
-      payload: response.data,
-    });
+      const response = await api.get(`/public/categories?${queryString}`);
 
-    return response.data;
-  } catch (error) {
-    const message =
-      error?.response?.data?.message ||
-      error?.response?.data?.error ||
-      error?.message ||
-      "Failed to fetch categories";
+      dispatch({
+        type: "FETCH_ADMIN_CATEGORIES",
+        payload: response.data,
+      });
 
-    dispatch({
-      type: "CATEGORY_ERROR",
-      payload: message,
-    });
+      return response.data;
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to fetch categories";
 
-    return null;
-  }
-};
+      dispatch({
+        type: "CATEGORY_ERROR",
+        payload: message,
+      });
+
+      return null;
+    }
+  };
 
 export const fetchCategoryDistribution = () => async (dispatch) => {
   dispatch({ type: "CATEGORY_DISTRIBUTION_LOADING" });
@@ -94,7 +91,6 @@ export const fetchCategoryDistribution = () => async (dispatch) => {
     });
   }
 };
-
 
 const getCategoryErrorMessage = (error, fallback) =>
   error?.response?.data?.message ||
@@ -138,8 +134,6 @@ export const createCategory = (categoryData, toast) => async (dispatch) => {
   }
 };
 
-
-
 export const fetchCategoryStats = () => async (dispatch) => {
   try {
     dispatch({ type: "CATEGORY_STATS_LOADING" });
@@ -167,7 +161,6 @@ export const fetchCategoryStats = () => async (dispatch) => {
     return null;
   }
 };
-
 
 // UPDATE CATEGORY
 export const updateCategory =
@@ -613,48 +606,47 @@ export const stripePaymentConfirmation =
     }
   };
 
-export const analyticsAction = () => async (dispatch) => {
-  dispatch({ type: "ANALYTICS_FETCHING" });
 
+export const analyticsAction = () => async (dispatch) => {
   try {
+    dispatch({ type: "ANALYTICS_LOADING" });
+
     const { data } = await api.get("/admin/app/analytics");
 
     dispatch({
       type: "FETCH_ANALYTICS",
       payload: data,
     });
-
-    dispatch({ type: "ANALYTICS_SUCCESS" });
   } catch (error) {
     dispatch({
       type: "ANALYTICS_ERROR",
       payload:
         error?.response?.data?.message ||
         error?.response?.data?.error ||
+        error?.message ||
         "Failed to fetch analytics data",
     });
   }
 };
 
 export const getSalesOverview = () => async (dispatch) => {
-  dispatch({ type: "SALES_OVERVIEW_FETCHING" });
-
   try {
+    dispatch({ type: "SALES_OVERVIEW_LOADING" });
+
     const { data } = await api.get("/admin/app/sales_summary");
 
     dispatch({
       type: "FETCH_SALESDATA",
       payload: data,
     });
-
-    dispatch({ type: "SALES_OVERVIEW_SUCCESS" });
   } catch (error) {
     dispatch({
       type: "SALES_OVERVIEW_ERROR",
       payload:
         error?.response?.data?.message ||
         error?.response?.data?.error ||
-        "Failed to fetch Sales data",
+        error?.message ||
+        "Failed to fetch sales data",
     });
   }
 };
@@ -1037,5 +1029,240 @@ export const deleteProduct = (product, toast) => async (dispatch) => {
     dispatch({ type: "IS_ERROR", payload: message });
     toast.error(message);
     return false;
+  }
+};
+
+// ----------------------------------
+// Seller API Actions
+// ----------------------------------
+
+// Error Message setup
+const getSellerErrorMessage = (error, fallback) =>
+  error?.response?.data?.message ||
+  error?.response?.data?.error ||
+  (typeof error?.response?.data === "string" ? error.response.data : null) ||
+  error?.message ||
+  fallback;
+
+// Fetch all sellers
+export const fetchAdminSellers =
+  (queryString = "") =>
+  async (dispatch) => {
+    dispatch({ type: "SELLERS_LOADING" });
+
+    try {
+      const { data } = await api.get(
+        `admin/sellers${queryString ? `?${queryString}` : ""}`,
+      );
+
+      dispatch({
+        type: "FETCH_ADMIN_SELLERS",
+        payload: data,
+      });
+
+      return data;
+    } catch (error) {
+      const message = getSellerErrorMessage(error, "Failed to fetch Sellers");
+
+      dispatch({
+        type: "SELLERS_ERROR",
+        payload: message,
+      });
+
+      return null;
+    }
+  };
+
+// Create Seller
+export const createSeller =
+  (sellerData, queryString = "", toast) =>
+  async (dispatch) => {
+    dispatch({ type: "SELLER_MUTATION_LOADING" });
+
+    try {
+      const payload = {
+        userName: sellerData.userName,
+        email: sellerData.email,
+        password: sellerData.password,
+        storeName: sellerData.storeName,
+        phone: sellerData.phone,
+      };
+
+      const { data } = await api.post("/admin/sellers", payload);
+
+      toast?.success("Seller created successfully");
+
+      dispatch({ type: "SELLER_MUTATION_SUCCESS" });
+
+      await dispatch(fetchAdminSellers(queryString));
+
+      return { ok: true, data };
+    } catch (error) {
+      const message = getSellerErrorMessage(error, "Failed to create seller");
+
+      dispatch({
+        type: "SELLER_MUTATION_ERROR",
+        payload: message,
+      });
+
+      toast?.error(message);
+      return { ok: false, error };
+    }
+  };
+
+// fetch seller by ID
+export const fetchSellerById = (sellerId) => async (dispatch) => {
+  try {
+    const { data } = await api.get(`/admin/seller/${sellerId}`);
+
+    return data;
+  } catch (error) {
+    const message = getSellerErrorMessage(
+      error,
+      "Failed to fetch seller details",
+    );
+
+    return { error: message };
+  }
+};
+
+// update seller
+export const updateSeller =
+  (sellerId, sellerData, queryString = "", toast) =>
+  async (dispatch) => {
+    dispatch({ type: "SELLER_MUTATION_LOADING" });
+
+    try {
+      const payload = {
+        userName: sellerData.userName,
+        email: sellerData.email,
+        storeName: sellerData.storeName,
+        phone: sellerData.phone,
+      };
+
+      // Password is optional during update.
+      if (sellerData.password?.trim()) {
+        payload.password = sellerData.password;
+      }
+
+      const { data } = await api.put(`/admin/seller/${sellerId}`, payload);
+
+      toast?.success("Seller updated successfully");
+
+      dispatch({ type: "SELLER_MUTATION_SUCCESS" });
+      await dispatch(fetchAdminSellers(queryString));
+
+      return { ok: true, data };
+    } catch (error) {
+      const message = getSellerErrorMessage(error, "Failed to update seller");
+
+      dispatch({
+        type: "SELLER_MUTATION_ERROR",
+        payload: message,
+      });
+
+      toast?.error(message);
+
+      return { ok: false, error };
+    }
+  };
+
+// Delete or deactivate seller
+export const deleteSeller =
+  (sellerId, queryString = "", toast) =>
+  async (dispatch) => {
+    dispatch({ type: "SELLER_MUTATION_LOADING" });
+
+    try {
+      const { data } = await api.delete(`/admin/seller/${sellerId}`);
+
+      toast?.success(
+        data?.message || "Seller operation completed successfully",
+      );
+
+      dispatch({ type: "SELLER_MUTATION_SUCCESS" });
+
+      await dispatch(fetchAdminSellers(queryString));
+
+      return { ok: true, data };
+    } catch (error) {
+      const message = getSellerErrorMessage(error, "Failed to delete seller");
+
+      dispatch({
+        type: "SELLER_MUTATION_ERROR",
+        payload: message,
+      });
+
+      toast?.error(message);
+
+      return { ok: false, error };
+    }
+  };
+
+
+// Update Seller Status
+export const updateSellerStatus =
+  (sellerId, sellerStatus, queryString = "", toast) =>
+  async (dispatch) => {
+    dispatch({ type: "SELLER_MUTATION_LOADING" });
+
+    try {
+      const { data } = await api.patch(
+        `/admin/seller/${sellerId}/status`,
+        { sellerStatus }
+      );
+
+      toast?.success(
+        `Seller ${sellerStatus === "ACTIVE" ? "activated" : "deactivated"} successfully`
+      );
+
+      dispatch({ type: "SELLER_MUTATION_SUCCESS" });
+
+      await dispatch(fetchAdminSellers(queryString));
+
+      return { ok: true, data };
+    } catch (error) {
+      const message = getSellerErrorMessage(
+        error,
+        "Failed to update seller status"
+      );
+
+      dispatch({
+        type: "SELLER_MUTATION_ERROR",
+        payload: message,
+      });
+
+      toast?.error(message);
+
+      return { ok: false, error };
+    }
+  };
+
+
+  // Fetch Seller Statistics
+export const fetchSellerStats = () => async (dispatch) => {
+  dispatch({ type: "SELLER_STATS_LOADING" });
+
+  try {
+    const { data } = await api.get("/admin/sellerStats");
+
+    dispatch({
+      type: "FETCH_SELLER_STATS",
+      payload: data,
+    });
+
+    return data;
+  } catch (error) {
+    const message = getSellerErrorMessage(
+      error,
+      "Failed to fetch seller statistics",
+    );
+
+    dispatch({
+      type: "SELLER_STATS_ERROR",
+      payload: message,
+    });
+
+    return null;
   }
 };

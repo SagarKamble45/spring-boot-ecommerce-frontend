@@ -1,29 +1,40 @@
-import React from 'react'
-import { useSelector } from 'react-redux'
-import { Navigate, Outlet } from 'react-router-dom';
+
+import { useSelector } from "react-redux";
+import { Navigate, Outlet } from "react-router-dom";
 
 function PrivateRoute({ publicPage = false, adminOnly = false }) {
-  
-    const {user} = useSelector((state)=> state.auth);
-    const isAdmin = user && user?.roles?.includes("ROLE_ADMIN")
-    console.log(user);
-    console.log(isAdmin);
-    console.log("Hello")
+  const { user } = useSelector((state) => state.auth);
 
-    if(publicPage){
-        return user ? <Navigate to="/"/> : <Outlet />
+  const isAuthenticated = Boolean(user);
+
+  const isAdmin = Boolean(
+    user?.roles?.includes("ROLE_ADMIN")
+  );
+
+  // Prevent authenticated users from accessing login/register.
+  if (publicPage) {
+    return isAuthenticated ? <Navigate to="/" replace /> : <Outlet />;
+  }
+
+  // Admin-only routes.
+  if (adminOnly) {
+    if (!isAuthenticated) {
+      return <Navigate to="/login" replace />;
     }
 
-    if(adminOnly){
-        if(!isAdmin){
-            return <Navigate to="/"/>
-        } 
-        return <Outlet />
+    if (!isAdmin) {
+      return <Navigate to="/403" replace />;
     }
 
+    return <Outlet />;
+  }
 
-  
-    return user ? <Outlet /> : <Navigate to="/login" />
+  // Routes requiring authentication.
+  return isAuthenticated ? (
+    <Outlet />
+  ) : (
+    <Navigate to="/login" replace />
+  );
 }
 
-export default PrivateRoute
+export default PrivateRoute;

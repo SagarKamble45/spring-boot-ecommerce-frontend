@@ -17,11 +17,13 @@ import useProductSelection from "./hooks/useProductSelection";
 import { KNOWN_STOCK_STATUSES } from "./ProductConstatnts";
 import { ExportProductsCsv } from "./ExportProductCsv";
 import { getCategoryName, getStockStatus } from "./ProductFormat";
+import FeatureError from "../shared/FeatureError";
 
 export default function ProductsTable({
   products = [],
   loading = false,
   error = "",
+  onRetry,
   onFilterChange,
   categoryOptions: categoryOptionsProp, // [{ value, label }] from Redux
   initialFilters,
@@ -102,14 +104,11 @@ export default function ProductsTable({
     ];
   }, [tableRecords, categoryOptionsProp, categoryFilter]);
 
-  const statusOptions = useMemo(
-    () => ["All", ...KNOWN_STOCK_STATUSES],
-    [],
-  );
+  const statusOptions = useMemo(() => ["All", ...KNOWN_STOCK_STATUSES], []);
 
   /* ---------- backend pagination ---------- */
   // Assumes Redux stores a one-based pageNumber.
-  const page = (pagination?.pageNumber ?? 0)+1;
+  const page = (pagination?.pageNumber ?? 0) + 1;
   const pageSize = pagination?.pageSize ?? 6;
   const totalCount = pagination?.totalElements ?? filtered.length;
 
@@ -119,8 +118,7 @@ export default function ProductsTable({
     pagination?.totalPages ?? Math.ceil(totalCount / pageSize),
   );
 
-  const rangeStart =
-    totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
 
   const rangeEnd = Math.min(page * pageSize, totalCount);
 
@@ -183,9 +181,7 @@ export default function ProductsTable({
     <div className="flex max-h-[75vh] min-h-0 flex-1 flex-col rounded-2xl border border-slate-100 bg-white shadow-sm xl:max-h-none">
       {/* Title */}
       <div className="px-4 pt-4">
-        <h2 className="text-lg font-semibold text-slate-900">
-          Products List
-        </h2>
+        <h2 className="text-lg font-semibold text-slate-900">Products List</h2>
       </div>
 
       {/* Toolbar / bulk actions */}
@@ -208,6 +204,17 @@ export default function ProductsTable({
           hasFilters={hasFilters}
           onClearFilters={clearFilters}
         />
+      )}
+
+      {error && tableRecords.length > 0 && (
+        <div className="px-4 pt-3">
+          <FeatureError
+            title="Unable to refresh products"
+            message={String(error)}
+            onRetry={onRetry}
+            compact
+          />
+        </div>
       )}
 
       {/* Scrollable table */}
@@ -259,9 +266,12 @@ export default function ProductsTable({
               <tr>
                 <td colSpan={7} className="px-4 py-16 text-center">
                   {error && tableRecords.length === 0 ? (
-                    <p className="text-sm text-rose-600">
-                      {String(error)}
-                    </p>
+                    <FeatureError
+                      title="Unable to laod products"
+                      message={String(error)}
+                      onRetry={onRetry}
+                      compact
+                      />
                   ) : hasFilters ? (
                     <>
                       <p className="text-sm text-slate-500">
@@ -277,9 +287,7 @@ export default function ProductsTable({
                       </button>
                     </>
                   ) : (
-                    <p className="text-sm text-slate-400">
-                      No products yet.
-                    </p>
+                    <p className="text-sm text-slate-400">No products yet.</p>
                   )}
                 </td>
               </tr>

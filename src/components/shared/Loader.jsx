@@ -1,36 +1,35 @@
-import { RotatingLines } from "react-loader-spinner";
 
 const Loader = ({
-  text,
-  color = "#2563eb",
+  text = "Loading...",
+  description = "Please wait while we prepare everything for you.",
+  color = "border-blue-600",
   fullScreen = false,
+  size = "h-12 w-12",
 }) => {
   return (
     <div
-      className={`
-        flex items-center justify-center
-        ${fullScreen ? "fixed inset-0 bg-white/80 backdrop-blur-sm z-50" : "w-full min-h-[300px]"}
-      `}
+      className={`flex w-full items-center justify-center ${
+        fullScreen
+          ? "fixed inset-0 z-[100] min-h-screen bg-white/90 backdrop-blur-sm"
+          : "min-h-[300px] px-4"
+      }`}
+      role="status"
+      aria-live="polite"
     >
-      <div className="flex flex-col items-center gap-4 animate-pulse">
-        <div className="p-4">
-          <RotatingLines
-            visible
-            height="70"
-            width="70"
-            color={color}
-            strokeWidth="4"
-            animationDuration="0.75"
-            ariaLabel="loading-spinner"
-          />
-        </div>
+      <div className="flex flex-col items-center text-center">
+        <div
+          className={`${size} animate-spin rounded-full border-[3px] ${color} border-t-transparent`}
+        />
 
-        <div className="text-center">
-          <p className="text-gray-800 font-medium">{text}</p>
-          <p className="text-sm text-gray-500 mt-1">
-            Please wait while we process your request
+        <h3 className="mt-5 text-base font-semibold text-slate-800">
+          {text}
+        </h3>
+
+        {description && (
+          <p className="mt-2 max-w-sm text-sm text-slate-500">
+            {description}
           </p>
-        </div>
+        )}
       </div>
     </div>
   );
