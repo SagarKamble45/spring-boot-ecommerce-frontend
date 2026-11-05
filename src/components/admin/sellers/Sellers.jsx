@@ -1,282 +1,168 @@
-import { useMemo, useState } from "react";
 
 import SellerHeader from "./components/SellerHeader";
 import SellerStats from "./components/SellerStats";
 import SellerTable from "./components/SellerTable";
-import SellerPerformance from "./components/SellerPerformance";
 import SellerPromoCard from "./components/SellerPromoCard";
+
 import SellerFormModal from "./components/SellerFormModal";
 import SellerViewModal from "./components/SellerViewModal";
 import SellerDeleteModal from "./components/SellerDeleteModal";
 
-import {
-  MOCK_SELLERS,
-} from "./data/sellerData";
+import FeatureError from "../shared/FeatureError";
+
+import useSellers from "./hooks/useSeller";
 
 function Sellers() {
-  // Local mock data state
-  const [sellers, setSellers] = useState(MOCK_SELLERS);
+  const {
+    sellers,
+    pagination,
 
-  // Modal states
-  const [isSellerModalOpen, setIsSellerModalOpen] = useState(false);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    sellerLoading: loading,
+    sellerMutationLoading: mutationLoading,
+    sellerError: error,
 
-  // Selected seller states
-  const [selectedSeller, setSelectedSeller] = useState(null);
-  const [sellerToDelete, setSellerToDelete] = useState(null);
+    sellerStats,
+    sellerStatsLoading,
+    sellerStatsError,
 
-  const [isDeleting, setIsDeleting] = useState(false);
+    searchInput,
+    status,
+    sortBy,
+    sortOrder,
 
-  // Table controls
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  const [sortBy, setSortBy] = useState("createdAt");
-  const [sortOrder, setSortOrder] = useState("DESC");
+    handleSearchChange,
+    handleStatusChange,
+    handleSortByChange,
+    handleSortOrderChange,
+    handlePageChange,
 
-  // Open Add Seller modal
-  const handleAddSeller = () => {
-    setSelectedSeller(null);
-    setIsSellerModalOpen(true);
-  };
+    refresh,
+    refreshSellerStats,
 
-  // Open Edit Seller modal
-  const handleEditSeller = (seller) => {
-    setSelectedSeller(seller);
-    setIsSellerModalOpen(true);
-  };
+    isSellerModalOpen,
+    isViewModalOpen,
+    isDeleteModalOpen,
 
-  // Open View Seller modal
-  const handleViewSeller = (seller) => {
-    setSelectedSeller(seller);
-    setIsViewModalOpen(true);
-  };
+    selectedSeller,
+    sellerToDelete,
 
-  // Open Delete Seller modal
-  const handleDeleteSeller = (seller) => {
-    setSellerToDelete(seller);
-    setIsDeleteModalOpen(true);
-  };
+    handleAddSeller,
+    handleEditSeller,
+    handleViewSeller,
+    handleDeleteSeller,
 
-  // Close Add/Edit modal
-  const handleCloseSellerModal = () => {
-    setIsSellerModalOpen(false);
-    setSelectedSeller(null);
-  };
+    handleCloseSellerModal,
+    handleCloseViewModal,
+    handleCloseDeleteModal,
 
-  // Add or Update Seller
-  const handleSellerSubmit = (formData) => {
-    if (selectedSeller) {
-      // Update existing seller
-      setSellers((previousSellers) =>
-        previousSellers.map((seller) =>
-          seller.sellerId === selectedSeller.sellerId
-            ? {
-                ...seller,
-                ...formData,
-              }
-            : seller
-        )
-      );
-    } else {
-      // Create new seller
-      const newSeller = {
-        sellerId:
-          Math.max(0, ...sellers.map((seller) => seller.sellerId)) + 1,
-        ...formData,
-        totalProducts: 0,
-        totalSales: 0,
-        createdAt: new Date().toISOString(),
-        status: formData.status || "ACTIVE",
-      };
-
-      setSellers((previousSellers) => [
-        newSeller,
-        ...previousSellers,
-      ]);
-    }
-
-    handleCloseSellerModal();
-  };
-
-  // Confirm Delete Seller
-  const handleConfirmDelete = async () => {
-    if (!sellerToDelete) return;
-
-    try {
-      setIsDeleting(true);
-
-      setSellers((previousSellers) =>
-        previousSellers.filter(
-          (seller) => seller.sellerId !== sellerToDelete.sellerId
-        )
-      );
-
-      setIsDeleteModalOpen(false);
-      setSellerToDelete(null);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  // Search, Filter and Sort
-  const filteredSellers = useMemo(() => {
-    let result = [...sellers];
-
-    // Search
-    if (searchTerm.trim()) {
-      const search = searchTerm.toLowerCase().trim();
-
-      result = result.filter(
-        (seller) =>
-          seller.sellerName?.toLowerCase().includes(search) ||
-          seller.email?.toLowerCase().includes(search) ||
-          seller.storeName?.toLowerCase().includes(search)
-      );
-    }
-
-    // Status filter
-    if (statusFilter !== "ALL") {
-      result = result.filter(
-        (seller) => seller.status === statusFilter
-      );
-    }
-
-    // Sorting
-    result.sort((a, b) => {
-      let valueA = a[sortBy];
-      let valueB = b[sortBy];
-
-      if (sortBy === "createdAt") {
-        valueA = new Date(valueA || 0).getTime();
-        valueB = new Date(valueB || 0).getTime();
-      } else if (
-        typeof valueA === "string" &&
-        typeof valueB === "string"
-      ) {
-        valueA = valueA.toLowerCase();
-        valueB = valueB.toLowerCase();
-      } else {
-        valueA = Number(valueA || 0);
-        valueB = Number(valueB || 0);
-      }
-
-      if (valueA < valueB) return sortOrder === "ASC" ? -1 : 1;
-      if (valueA > valueB) return sortOrder === "ASC" ? 1 : -1;
-
-      return 0;
-    });
-
-    return result;
-  }, [sellers, searchTerm, statusFilter, sortBy, sortOrder]);
-
-  // Statistics
-  const totalSellers = sellers.length;
-
-  const activeSellers = sellers.filter(
-    (seller) => seller.status === "ACTIVE"
-  ).length;
-
-  const inactiveSellers = sellers.filter(
-    (seller) => seller.status === "INACTIVE"
-  ).length;
-
-  const topSeller = [...sellers].sort(
-    (a, b) => (b.totalSales || 0) - (a.totalSales || 0)
-  )[0];
-
-  // Performance chart data
-  const performanceData = useMemo(() => {
-    const sellersWithSales = sellers
-      .filter((seller) => Number(seller.totalSales) > 0)
-      .sort((a, b) => b.totalSales - a.totalSales);
-
-    const topFive = sellersWithSales.slice(0, 5);
-    const otherSellers = sellersWithSales.slice(5);
-
-    const result = topFive.map((seller) => ({
-      sellerName: seller.sellerName,
-      totalSales: Number(seller.totalSales),
-    }));
-
-    if (otherSellers.length > 0) {
-      result.push({
-        sellerName: "Other Sellers",
-        totalSales: otherSellers.reduce(
-          (total, seller) => total + Number(seller.totalSales || 0),
-          0
-        ),
-      });
-    }
-
-    return result;
-  }, [sellers]);
+    handleSaveSeller,
+    handleConfirmDelete,
+  } = useSellers();
 
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <SellerHeader onAddSeller={handleAddSeller} />
 
-      {/* Statistics */}
+      {/* Seller Statistics */}
       <SellerStats
-        totalSellers={totalSellers}
-        activeSellers={activeSellers}
-        inactiveSellers={inactiveSellers}
-        topSellerName={topSeller?.sellerName || "No seller yet"}
-        topSellerSales={topSeller?.totalSales || 0}
+        totalSellers={sellerStats.totalSellers}
+        activeSellers={sellerStats.activeSellers}
+        inactiveSellers={sellerStats.inactiveSellers}
+        totalProducts={sellerStats.totalProducts}
+        loading={sellerStatsLoading}
       />
 
-      {/* Seller Table */}
+      {/* Statistics Error */}
+      {sellerStatsError && (
+        <FeatureError
+          title="Unable to load seller statistics"
+          message={sellerStatsError}
+          onRetry={refreshSellerStats}
+          compact
+        />
+      )}
+
+      {/* Sellers Table */}
       <SellerTable
-        sellers={filteredSellers}
-        searchTerm={searchTerm}
-        statusFilter={statusFilter}
+        sellers={sellers}
+        searchTerm={searchInput}
+        statusFilter={status}
         sortBy={sortBy}
         sortOrder={sortOrder}
-        onSearchChange={setSearchTerm}
-        onStatusChange={setStatusFilter}
-        onSortByChange={setSortBy}
-        onSortOrderChange={setSortOrder}
+        loading={loading}
+        error={error}
+        onRetry={refresh}
+        onSearchChange={handleSearchChange}
+        onStatusChange={handleStatusChange}
+        onSortByChange={handleSortByChange}
+        onSortOrderChange={handleSortOrderChange}
         onViewSeller={handleViewSeller}
         onEditSeller={handleEditSeller}
         onDeleteSeller={handleDeleteSeller}
       />
 
-      {/* Bottom Section */}
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <SellerPerformance performanceData={performanceData} />
+      {/* Pagination */}
+      {!loading && !error && pagination.totalPages > 1 && (
+        <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
+          <p className="text-sm text-slate-500">
+            Page {pagination.pageNumber + 1} of {pagination.totalPages}
+            {" · "}
+            {pagination.totalElements} sellers
+          </p>
 
-        <SellerPromoCard onInviteSeller={handleAddSeller} />
-      </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={pagination.pageNumber === 0}
+              onClick={() =>
+                handlePageChange(pagination.pageNumber)
+              }
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Previous
+            </button>
 
-      {/* Add / Edit Modal */}
+            <button
+              type="button"
+              disabled={pagination.lastPage}
+              onClick={() =>
+                handlePageChange(pagination.pageNumber + 2)
+              }
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Promotional Card */}
+      <SellerPromoCard onInviteSeller={handleAddSeller} />
+
+      {/* Add / Edit Seller */}
       <SellerFormModal
         isOpen={isSellerModalOpen}
         onClose={handleCloseSellerModal}
-        onSubmit={handleSellerSubmit}
+        onSubmit={handleSaveSeller}
         seller={selectedSeller}
+        isSubmitting={mutationLoading}
       />
 
-      {/* View Modal */}
+      {/* View Seller */}
       <SellerViewModal
         isOpen={isViewModalOpen}
-        onClose={() => {
-          setIsViewModalOpen(false);
-          setSelectedSeller(null);
-        }}
+        onClose={handleCloseViewModal}
         seller={selectedSeller}
       />
 
-      {/* Delete Modal */}
+      {/* Delete Seller */}
       <SellerDeleteModal
         isOpen={isDeleteModalOpen}
-        onClose={() => {
-          setIsDeleteModalOpen(false);
-          setSellerToDelete(null);
-        }}
+        onClose={handleCloseDeleteModal}
         onConfirm={handleConfirmDelete}
         seller={sellerToDelete}
-        isDeleting={isDeleting}
+        isDeleting={mutationLoading}
       />
     </div>
   );

@@ -1,5 +1,7 @@
+
 import { Package } from "lucide-react";
 import formatTimeAgo from "./utils/formatTimeAgo";
+import FeatureError from "../shared/FeatureError";
 
 const STATUS_STYLES = {
   Delivered: "bg-emerald-50 text-emerald-700",
@@ -10,35 +12,30 @@ const STATUS_STYLES = {
   Cancelled: "bg-rose-50 text-rose-700",
 };
 
-// const formatTimeAgo = (dateString) => {
-//   if (!dateString) return "";
+function RecentOrdersSkeleton() {
+  return (
+    <ul className="mt-3 divide-y divide-slate-100">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <li key={index} className="flex items-center gap-3 py-2.5">
+          <div className="h-10 w-10 animate-pulse rounded-lg bg-slate-100" />
 
-//   const date = new Date(dateString);
-//   const diffInMs = Date.now() - date.getTime();
-//   const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="h-3 w-28 animate-pulse rounded bg-slate-100" />
+            <div className="h-3 w-20 animate-pulse rounded bg-slate-100" />
+          </div>
 
-//   if (diffInDays <= 0) return "Today";
-//   if (diffInDays === 1) return "1 day ago";
-//   if (diffInDays < 30) return `${diffInDays} days ago`;
+          <div className="h-5 w-16 animate-pulse rounded-full bg-slate-100" />
+        </li>
+      ))}
+    </ul>
+  );
+}
 
-//   const diffInMonths = Math.floor(diffInDays / 30);
-//   return `${diffInMonths} month${diffInMonths > 1 ? "s" : ""} ago`;
-// };
-
-/**
- * Props:
- *  - orders: Array<{
- *      orderId,
- *      userName,
- *      email,
- *      orderDate,
- *      totalAmount,
- *      orderStatus
- *    }>
- *  - onViewAll: () => void
- */
 export default function RecentOrdersWidget({
   orders = [],
+  loading = false,
+  error = null,
+  onRetry,
   onViewAll = () => {},
 }) {
   return (
@@ -57,54 +54,87 @@ export default function RecentOrdersWidget({
         </button>
       </div>
 
-      <ul className="mt-3 divide-y divide-slate-100">
-        {orders.map((order) => {
-          const customerName = order.userName || order.email || "Unknown customer";
+      {error && orders.length === 0 ? (
+        <div className="mt-3">
+          <FeatureError
+            title="Recent orders unavailable"
+            message={String(error)}
+            onRetry={onRetry}
+            compact
+          />
+        </div>
+      ) : loading && orders.length === 0 ? (
+        <RecentOrdersSkeleton />
+      ) : (
+        <>
+          {error && (
+            <div className="mt-3">
+              <FeatureError
+                title="Unable to refresh recent orders"
+                message={String(error)}
+                onRetry={onRetry}
+                compact
+              />
+            </div>
+          )}
 
-          return (
-            <li
-              key={order.orderId}
-              className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
-            >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100">
-                <Package className="h-5 w-5 text-slate-400" />
-              </div>
+          <ul className="mt-3 divide-y divide-slate-100">
+            {orders.map((order) => {
+              const customerName =
+                order.userName || order.email || "Unknown customer";
 
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-slate-700">
-                  #{order.orderId} · ₹
-                  {Number(order.totalAmount ?? 0).toLocaleString("en-IN")}
-                </p>
-
-                <p className="truncate text-xs text-slate-400">
-                  {customerName}
-                </p>
-              </div>
-
-              <div className="flex shrink-0 flex-col items-end gap-1">
-                <span
-                  className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${
-                    STATUS_STYLES[order.orderStatus] ??
-                    "bg-slate-100 text-slate-600"
-                  }`}
+              return (
+                <li
+                  key={order.orderId}
+                  className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
                 >
-                  {order.orderStatus}
-                </span>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100">
+                    <Package className="h-5 w-5 text-slate-400" />
+                  </div>
 
-                <span className="text-[11px] text-slate-400">
-                  {formatTimeAgo(order.orderDate)}
-                </span>
-              </div>
-            </li>
-          );
-        })}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-slate-700">
+                      #{order.orderId} · ₹
+                      {Number(order.totalAmount ?? 0).toLocaleString("en-IN")}
+                    </p>
 
-        {orders.length === 0 && (
-          <li className="py-6 text-center text-sm text-slate-400">
-            No recent orders.
-          </li>
-        )}
-      </ul>
+                    <p className="truncate text-xs text-slate-400">
+                      {customerName}
+                    </p>
+                  </div>
+
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span
+                      className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${
+                        STATUS_STYLES[order.orderStatus] ??
+                        "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {order.orderStatus}
+                    </span>
+
+                    <span className="text-[11px] text-slate-400">
+                      {formatTimeAgo(order.orderDate)}
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+
+            {orders.length === 0 && (
+              <li className="py-6 text-center text-sm text-slate-400">
+                No recent orders.
+              </li>
+            )}
+          </ul>
+
+          {loading && orders.length > 0 && (
+            <p className="mt-2 text-xs text-slate-400">
+              Refreshing recent orders...
+            </p>
+          )}
+        </>
+      )}
     </div>
   );
 }

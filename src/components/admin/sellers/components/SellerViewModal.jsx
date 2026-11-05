@@ -11,7 +11,7 @@ const SellerViewModal = ({ isOpen, onClose, seller }) => {
     email,
     storeName,
     phone,
-    status,
+    sellerStatus,
     totalProducts = 0,
     totalSales = 0,
     createdAt,
@@ -97,7 +97,7 @@ const SellerViewModal = ({ isOpen, onClose, seller }) => {
             </div>
 
             <div className="shrink-0">
-              <SellerStatusBadge status={status} />
+              <SellerStatusBadge status={sellerStatus} />
             </div>
           </div>
 

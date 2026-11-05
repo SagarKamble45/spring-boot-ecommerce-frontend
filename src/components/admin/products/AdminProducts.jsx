@@ -3,9 +3,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { Plus } from "lucide-react";
-import Loader from "../../shared/Loader";
 import toast from "react-hot-toast";
 
+import FeatureError from "../shared/FeatureError";
 import ProductsStatCards from "./ProductsStatCards";
 import ProductsTable from "./ProductsTable";
 import ProductPromoBanner from "./ProductPromoBanner";
@@ -46,27 +46,17 @@ function AdminProducts() {
 
   const { refresh } = useAdminProductFilter();
 
-  // Load statistics, recent products, and category options.
   useEffect(() => {
     dispatch(fetchProductStats());
     dispatch(fetchRecentProducts());
     dispatch(fetchCategoryOptions());
   }, [dispatch]);
 
-  // Full-page loading on the initial load only.
-  const initialLoading =
-    (adminProductsLoading && adminProducts.length === 0) ||
-    (productStatsLoading &&
-      Object.keys(productStats).length === 0) ||
-    (recentProductsLoading && recentProducts.length === 0) ||
-    (categoryOptionsLoading && categoryOptions.length === 0);
-
   const [showAllProducts, setShowAllProducts] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [editOpen, setEditOpen] = useState(false);
 
-  // Build category filter options from the category API and loaded products.
   const tableCategoryOptions = useMemo(() => {
     const names = new Set([
       ...categoryOptions.map((category) => category.categoryName),
@@ -82,7 +72,6 @@ function AdminProducts() {
       }));
   }, [categoryOptions, adminProducts]);
 
-  // Read existing filters from the URL.
   const [initialFilters] = useState(() => ({
     search: searchParams.get("keyword") ?? "",
     category: searchParams.get("category") ?? "",
@@ -105,17 +94,14 @@ function AdminProducts() {
         setOrRemove("keyword", search);
         setOrRemove("category", category);
         setOrRemove("status", status);
-
-        // Reset pagination when filters change.
         next.set("page", "0");
 
         return next;
       });
     },
-    [setSearchParams]
+    [setSearchParams],
   );
 
-  // Refresh dependent data after product mutations.
   const refreshProductData = () => {
     refresh();
     dispatch(fetchProductStats());
@@ -136,24 +122,17 @@ function AdminProducts() {
   };
 
   const handleDelete = async (product) => {
-    const name =
-      product.productName ?? product.name ?? "this product";
+    const name = product.productName ?? product.name ?? "this product";
 
-    if (
-      !window.confirm(
-        `Delete "${name}"? This cannot be undone.`
-      )
-    ) {
+    if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) {
       return;
     }
 
     const ok = await dispatch(deleteProduct(product, toast));
-
     if (!ok) return;
 
     const page = Number(searchParams.get("page") ?? 0);
 
-    // Return to the previous page if the last row was deleted.
     if (adminProducts.length === 1 && page > 0) {
       setSearchParams((previous) => {
         const next = new URLSearchParams(previous);
@@ -168,10 +147,6 @@ function AdminProducts() {
     dispatch(fetchRecentProducts());
   };
 
-  if (initialLoading) {
-    return <Loader text="Loading products..." fullScreen />;
-  }
-
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -180,7 +155,6 @@ function AdminProducts() {
           <h1 className="text-2xl font-semibold text-slate-900">
             Products
           </h1>
-
           <p className="mt-0.5 text-sm text-slate-500">
             Manage your store products, add new ones or update existing items.
           </p>
@@ -197,34 +171,34 @@ function AdminProducts() {
       </div>
 
       {/* Product statistics */}
-      {productStatsLoading ? (
-        <Loader text="Loading product statistics..." />
-      ) : productStatsError ? (
-        <div
-          role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
-        >
-          Failed to load product statistics: {productStatsError}
-        </div>
+      {productStatsError ? (
+        <FeatureError
+          title="Product statistics unavailable"
+          message={productStatsError}
+          onRetry={() => dispatch(fetchProductStats())}
+          compact
+        />
       ) : (
-        <ProductsStatCards productStats={productStats} />
+        <ProductsStatCards
+          productStats={productStats}
+          loading={productStatsLoading}
+        />
       )}
 
-      {/* Category options error */}
-      {categoryOptionsLoading && (
-        <p className="text-sm text-slate-500">
-          Loading category options...
-        </p>
-      )}
-
+      {/* Category options are independent from the product list */}
       {categoryOptionsError && (
-        <div
-          role="alert"
-          className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"
-        >
-          Category filter options could not be loaded:{" "}
-          {categoryOptionsError}
-        </div>
+        <FeatureError
+          title="Category filter options unavailable"
+          message={categoryOptionsError}
+          onRetry={() => dispatch(fetchCategoryOptions())}
+          compact
+        />
+      )}
+
+      {categoryOptionsLoading && categoryOptions.length === 0 && (
+        <p className="text-xs text-slate-400">
+          Loading category filter options...
+        </p>
       )}
 
       {/* Products table and sidebar */}
@@ -252,6 +226,7 @@ function AdminProducts() {
             products={adminProducts}
             loading={adminProductsLoading}
             error={adminProductsError}
+            onRetry={refresh}
             pagination={adminPagination}
             categoryOptions={tableCategoryOptions}
             initialFilters={initialFilters}
@@ -266,28 +241,17 @@ function AdminProducts() {
           <div className="grid content-start gap-4 sm:grid-cols-2 xl:min-h-0 xl:grid-cols-1 xl:overflow-y-auto">
             <ProductPromoBanner />
 
-            {/* Recent products */}
-            {recentProductsLoading ? (
-              <Loader text="Loading recent products..." />
-            ) : recentProductsError ? (
-              <div
-                role="alert"
-                className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
-              >
-                Failed to load recent products:{" "}
-                {recentProductsError}
-              </div>
-            ) : (
-              <RecentProductsWidget
-                products={recentProducts}
-                onViewAll={() => setShowAllProducts(true)}
-              />
-            )}
+            <RecentProductsWidget
+              products={recentProducts}
+              loading={recentProductsLoading}
+              error={recentProductsError}
+              onRetry={() => dispatch(fetchRecentProducts())}
+              onViewAll={() => setShowAllProducts(true)}
+            />
           </div>
         )}
       </div>
 
-      {/* Edit product modal */}
       <EditProduct
         open={editOpen}
         product={editing}
@@ -295,7 +259,6 @@ function AdminProducts() {
         onProductUpdated={handleProductUpdated}
       />
 
-      {/* Add product modal */}
       <AddProductModal
         open={addOpen}
         onClose={() => setAddOpen(false)}

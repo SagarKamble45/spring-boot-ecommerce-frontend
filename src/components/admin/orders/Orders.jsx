@@ -1,3 +1,4 @@
+
 import { Calendar, ChevronDown } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEffect, useState } from "react";
@@ -8,12 +9,17 @@ import OrderStatusOverview from "./OrderStatusOverview";
 import RecentOrdersWidget from "./RecentOrdersWidget";
 
 import useOrderFilter from "../../../hooks/useOrderFilter";
-import { fetchOrderStats, fetchRecentOrders } from "../../../store/action";
+import {
+  fetchOrderStats,
+  fetchRecentOrders,
+  getOrdersForDashboard,
+} from "../../../store/action";
 
-import Loader from "../../shared/Loader";
+import FeatureError from "../shared/FeatureError";
 
 function Orders() {
   const dispatch = useDispatch();
+  const { queryString } = useOrderFilter();
 
   const {
     adminOrders = [],
@@ -31,8 +37,6 @@ function Orders() {
     recentOrdersError,
   } = useSelector((state) => state.order);
 
-  useOrderFilter();
-
   useEffect(() => {
     dispatch(fetchOrderStats());
     dispatch(fetchRecentOrders());
@@ -40,15 +44,11 @@ function Orders() {
 
   const [showAllOrders, setShowAllOrders] = useState(false);
 
-  // Show the full-page loader while initial data is being fetched.
-  const initialLoading =
-    (ordersLoading && adminOrders.length === 0) ||
-    (orderStatsLoading && Object.keys(orderStats).length === 0) ||
-    (recentOrdersLoading && recentOrders.length === 0);
+  const retryOrders = () => dispatch(getOrdersForDashboard(queryString));
+  const retryStats = () => dispatch(fetchOrderStats());
+  const retryRecentOrders = () => dispatch(fetchRecentOrders());
 
-  if (initialLoading) {
-    return <Loader text="Loading orders..." />;
-  }
+  const hasStats = Object.keys(orderStats ?? {}).length > 0;
 
   return (
     <div className="space-y-4">
@@ -72,17 +72,28 @@ function Orders() {
       </div>
 
       {/* Order statistics */}
-      {orderStatsLoading ? (
-        <Loader text="Loading order statistics..." />
-      ) : orderStatsError ? (
-        <div
-          role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
-        >
-          {orderStatsError}
-        </div>
+      {orderStatsError && !hasStats ? (
+        <FeatureError
+          title="Order statistics unavailable"
+          message={String(orderStatsError)}
+          onRetry={retryStats}
+        />
       ) : (
-        <OrdersStatCards orderStats={orderStats} />
+        <>
+          {orderStatsError && (
+            <FeatureError
+              title="Unable to refresh order statistics"
+              message={String(orderStatsError)}
+              onRetry={retryStats}
+              compact
+            />
+          )}
+
+          <OrdersStatCards
+            orderStats={orderStats}
+            loading={orderStatsLoading}
+          />
+        </>
       )}
 
       {/* Orders table and sidebar */}
@@ -110,6 +121,7 @@ function Orders() {
             orders={adminOrders}
             loading={ordersLoading}
             error={ordersError}
+            onRetry={retryOrders}
             pagination={{
               page: (pagination.pageNumber ?? 0) + 1,
               pageSize: pagination.pageSize,
@@ -121,34 +133,20 @@ function Orders() {
         {/* Dashboard widgets */}
         {!showAllOrders && (
           <div className="grid content-start gap-4 sm:grid-cols-2 xl:min-h-0 xl:grid-cols-1 xl:overflow-y-auto">
-            {/* Order status overview */}
-            {orderStatsError ? (
-              <div
-                role="alert"
-                className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
-              >
-                Order status overview is unavailable.
-              </div>
-            ) : (
-              <OrderStatusOverview orderStats={orderStats} />
-            )}
+            <OrderStatusOverview
+              orderStats={orderStats}
+              loading={orderStatsLoading}
+              error={orderStatsError}
+              onRetry={retryStats}
+            />
 
-            {/* Recent orders */}
-            {recentOrdersLoading ? (
-              <Loader text="Loading recent orders..." />
-            ) : recentOrdersError ? (
-              <div
-                role="alert"
-                className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
-              >
-                {recentOrdersError}
-              </div>
-            ) : (
-              <RecentOrdersWidget
-                orders={recentOrders}
-                onViewAll={() => setShowAllOrders(true)}
-              />
-            )}
+            <RecentOrdersWidget
+              orders={recentOrders}
+              loading={recentOrdersLoading}
+              error={recentOrdersError}
+              onRetry={retryRecentOrders}
+              onViewAll={() => setShowAllOrders(true)}
+            />
           </div>
         )}
       </div>

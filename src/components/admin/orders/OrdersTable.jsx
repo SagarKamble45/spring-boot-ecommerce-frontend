@@ -16,6 +16,7 @@ import useOrderSelection from "./hooks/useOrderSelection";
 
 import { KNOWN_STATUSES } from "./utils/orderConstants";
 import { formatDate, normalizeStatus } from "./utils/orderFormat";
+import FeatureError from "../shared/FeatureError";
 
 /* ------------------------------------------------------------------ */
 /*  Orders table                                                       */
@@ -24,6 +25,7 @@ export default function OrdersTable({
   orders = [],
   loading = false,
   error = "",
+  onRetry,
   onFilterChange,
   statusOptions: statusOptionsProp,
   paymentOptions: paymentOptionsProp,
@@ -180,6 +182,17 @@ export default function OrdersTable({
         />
       )}
 
+      {error && tableRecords.length > 0 && (
+        <div className="px-4 pt-3">
+          <FeatureError
+            title="Unable to refresh orders"
+            message={String(error)}
+            onRetry={onRetry}
+            compact
+          />
+        </div>
+      )}
+
       {/* TABLE: only this part scrolls; header row stays visible */}
       <div
         className={`min-h-0 flex-1 overflow-auto transition-opacity ${
@@ -230,7 +243,12 @@ export default function OrdersTable({
               <tr>
                 <td colSpan={8} className="px-4 py-16 text-center">
                   {error && tableRecords.length === 0 ? (
-                    <p className="text-sm text-rose-600">{String(error)}</p>
+                    <FeatureError
+                      title="Unable to load orders"
+                      message={String(error)}
+                      onRetry={onRetry}
+                      compact
+                    />
                   ) : hasFilters ? (
                     <>
                       <p className="text-sm text-slate-500">

@@ -1,16 +1,42 @@
-import { ShoppingCart, IndianRupee, Clock, Truck, XCircle } from "lucide-react";
-import { useDispatch, useSelector } from "react-redux";
+
+import {
+  ShoppingCart,
+  IndianRupee,
+  Clock,
+  Truck,
+  XCircle,
+} from "lucide-react";
+
 import { StatCard } from "./StatsCard";
-import { useEffect } from "react";
-import { fetchOrderStats } from "../../../store/action";
 
-export default function OrdersStatCards({orderStats}) {
+function StatsSkeleton() {
+  return (
+    <div className="flex flex-wrap gap-3">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div
+          key={index}
+          className="min-w-[170px] flex-1 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 animate-pulse rounded-full bg-slate-100" />
+            <div className="h-3 w-24 animate-pulse rounded bg-slate-100" />
+          </div>
+          <div className="mt-4 h-6 w-20 animate-pulse rounded bg-slate-100" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
-//   const dispatch = useDispatch();
+export default function OrdersStatCards({
+  orderStats,
+  loading = false,
+}) {
+  const hasStats = Object.keys(orderStats ?? {}).length > 0;
 
-//     useEffect(() => {
-//   dispatch(fetchOrderStats());
-// }, [dispatch]);
+  if (loading && !hasStats) {
+    return <StatsSkeleton />;
+  }
 
   const totalOrders = Number(orderStats?.totalOrders ?? 0);
   const totalRevenue = Number(orderStats?.TotalRevenue ?? 0);
@@ -18,8 +44,8 @@ export default function OrdersStatCards({orderStats}) {
   const shippedOrders = Number(orderStats?.shippedOrders ?? 0);
   const cancelledOrders = Number(orderStats?.cancelledOrders ?? 0);
 
-  const currency = (n) =>
-    `₹${n.toLocaleString("en-IN", {
+  const currency = (value) =>
+    `₹${value.toLocaleString("en-IN", {
       maximumFractionDigits: 2,
     })}`;
 

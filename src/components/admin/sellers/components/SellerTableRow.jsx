@@ -16,7 +16,7 @@ const SellerTableRow = ({
     totalProducts = 0,
     totalSales = 0,
     createdAt,
-    status,
+    sellerStatus,
   } = seller;
 
   const formatDate = (date) => {
@@ -90,7 +90,7 @@ const SellerTableRow = ({
 
       {/* Status */}
       <td className="px-5 py-4">
-        <SellerStatusBadge status={status} />
+        <SellerStatusBadge status={sellerStatus} />
       </td>
 
       {/* Actions */}
