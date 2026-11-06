@@ -40,6 +40,7 @@ import Orders from "./components/admin/orders/Orders";
 import ForbiddenPage from "./components/error/ForbiddenPage";
 import ServerErrorPage from "./components/error/ServerErrorPage";
 import NotFoundPage from "./components/error/NotFoundPage";
+import Customers from "./components/admin/customers/Customers";
 
 // Error pages
 
@@ -87,6 +88,7 @@ function App() {
               <Route path="products" element={<AdminProducts />} />
               <Route path="categories" element={<Categories />} />
               <Route path="sellers" element={<Sellers />} />
+              <Route path="customers" element={<Customers />} />
             </Route>
           </Route>
 
