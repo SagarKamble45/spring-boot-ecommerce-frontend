@@ -606,7 +606,6 @@ export const stripePaymentConfirmation =
     }
   };
 
-
 export const analyticsAction = () => async (dispatch) => {
   try {
     dispatch({ type: "ANALYTICS_LOADING" });
@@ -1199,7 +1198,6 @@ export const deleteSeller =
     }
   };
 
-
 // Update Seller Status
 export const updateSellerStatus =
   (sellerId, sellerStatus, queryString = "", toast) =>
@@ -1207,13 +1205,12 @@ export const updateSellerStatus =
     dispatch({ type: "SELLER_MUTATION_LOADING" });
 
     try {
-      const { data } = await api.patch(
-        `/admin/seller/${sellerId}/status`,
-        { sellerStatus }
-      );
+      const { data } = await api.patch(`/admin/seller/${sellerId}/status`, {
+        sellerStatus,
+      });
 
       toast?.success(
-        `Seller ${sellerStatus === "ACTIVE" ? "activated" : "deactivated"} successfully`
+        `Seller ${sellerStatus === "ACTIVE" ? "activated" : "deactivated"} successfully`,
       );
 
       dispatch({ type: "SELLER_MUTATION_SUCCESS" });
@@ -1224,7 +1221,7 @@ export const updateSellerStatus =
     } catch (error) {
       const message = getSellerErrorMessage(
         error,
-        "Failed to update seller status"
+        "Failed to update seller status",
       );
 
       dispatch({
@@ -1238,8 +1235,7 @@ export const updateSellerStatus =
     }
   };
 
-
-  // Fetch Seller Statistics
+// Fetch Seller Statistics
 export const fetchSellerStats = () => async (dispatch) => {
   dispatch({ type: "SELLER_STATS_LOADING" });
 
@@ -1266,3 +1262,145 @@ export const fetchSellerStats = () => async (dispatch) => {
     return null;
   }
 };
+
+// ----------------------------------
+// Customer API Actions
+// ----------------------------------
+
+// Common Customer Error message
+const getCustomerErrorMessage = (error, fallback) =>
+  error?.response?.data?.message ||
+  error?.response?.data?.error ||
+  (typeof error?.response?.data === "string" ? error.response.data : null) ||
+  error?.message ||
+  fallback;
+
+// Fetch all Customers
+export const fetchAdminCustomers =
+  (queryString = "") =>
+  async (dispatch) => {
+    dispatch({ type: "CUSTOMERS_LOADING" });
+
+    try {
+      const { data } = await api.get(
+        `/admin/customers${queryString ? `?${queryString}` : ""}`,
+      );
+
+      dispatch({
+        type: "FETCH_ADMIN_CUSTOMERS",
+        payload: data,
+      });
+
+      return data;
+    } catch (error) {
+      const message = getCustomerErrorMessage(
+        error,
+        "failed to fetch customer",
+      );
+
+      dispatch({
+        type: "CUSTOMERS_ERROR",
+        payload: message,
+      });
+
+      return null;
+    }
+  };
+
+// Fetch Customer statistics
+
+export const fetchCustomerStats = () => async (dispatch) => {
+  dispatch({ type: "CUSTOMER_STATS_LOADING" });
+
+  try {
+    const { data } = await api.get("/admin/customers/stats");
+
+    dispatch({
+      type: "FETCH_CUSTOMER_STATS",
+      payload: data,
+    });
+
+    return data;
+  } catch (error) {
+    const message = getCustomerErrorMessage(
+      error,
+      "Failed to fetch customer statistics",
+    );
+
+    dispatch({
+      type: "CUSTOMER_STATS_ERROR",
+      payload: message,
+    });
+
+    return null;
+  }
+};
+
+// Fetch Customer details
+export const fetchCustomerDetails = (customerId) => async (dispatch) => {
+  dispatch({ type: "CUSTOMER_DETAILS_LOADING" });
+
+  try {
+    const { data } = await api.get(`/admin/customers/${customerId}`);
+
+    dispatch({
+      type: "FETCH_CUSTOMER_DETAILS",
+      payload: data,
+    });
+
+    return data;
+  } catch (error) {
+    const message = getCustomerErrorMessage(
+      error,
+      "Failed to fetch customer details",
+    );
+
+    dispatch({
+      type: "CUSTOMER_DETAILS_ERROR",
+      payload: message,
+    });
+
+    return null;
+  }
+};
+
+// Update customer status
+export const updateCustomerStatus =
+  (customerId, customerStatus, queryString = "", toast) =>
+  async (dispatch) => {
+    dispatch({ type: "CUSTOMER_MUTATION_LOADING" });
+
+    try {
+      const { data } = await api.patch(
+        `/admin/customers/${customerId}/status`,
+        { customerStatus },
+      );
+
+      toast?.success(
+        `Customer ${customerStatus === "ACTIVE" ? "activated" : "deactivated"} successfully`,
+      );
+
+      dispatch({
+        type: "CUSTOMER_MUTATION_SUCCESS",
+      });
+
+      // refresh customer list after successful update
+      await dispatch(fetchAdminCustomers(queryString));
+
+      return { ok: true, data };
+    } catch (error) {
+      const message = getCustomerErrorMessage(
+        error,
+        "Failed to update customer status",
+      );
+
+      dispatch({
+        type: "CUSTOMER_MUTATION_ERROR",
+        payload: message,
+      });
+
+      toast?.error(message);
+
+      return { ok: false, error: message };
+    }
+  };

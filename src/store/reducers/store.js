@@ -8,6 +8,7 @@ import { adminReducer } from "./adminReducer";
 import { orderReducer } from "./orderReducer";
 import {categoryReducer} from "./categoryReducer"
 import { sellerReducer } from "./sellerReducer";
+import { customerReducer } from "./customerReducer";
 
 
 const user = localStorage.getItem("auth")
@@ -39,6 +40,7 @@ export const store = configureStore({
     order:orderReducer,
     category:categoryReducer,
     seller: sellerReducer,
+    customer: customerReducer,
   },
   preloadedState: initialState,
 });
