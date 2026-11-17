@@ -1,12 +1,14 @@
+
 import {
   UserRound,
   Mail,
   Phone,
   CalendarDays,
   Hash,
+  ShieldCheck,
 } from "lucide-react";
 
-const CustomerPersonalDetails = ({ customer, details }) => {
+const CustomerPersonalDetails = ({ customer }) => {
   const formatDate = (date) => {
     if (!date) return "—";
 
@@ -66,22 +68,40 @@ const CustomerPersonalDetails = ({ customer, details }) => {
         />
 
         <DetailItem
-          icon={UserRound}
-          label="Gender"
-          value={details?.gender}
-        />
-
-        <DetailItem
-          icon={CalendarDays}
-          label="Date of Birth"
-          value={formatDate(details?.dateOfBirth)}
-        />
-
-        <DetailItem
           icon={CalendarDays}
           label="Date Joined"
           value={formatDate(customer.createdAt)}
         />
+
+        <DetailItem
+          icon={ShieldCheck}
+          label="Account Status"
+          value={customer.status}
+        />
+      </div>
+
+      {/* Assigned Roles */}
+      <div className="mt-7 border-t border-slate-100 pt-5">
+        <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-slate-400">
+          Assigned Roles
+        </h3>
+
+        <div className="flex flex-wrap gap-2">
+          {customer.roles?.length > 0 ? (
+            customer.roles.map((role) => (
+              <span
+                key={role}
+                className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700"
+              >
+                {role.replace("ROLE_", "")}
+              </span>
+            ))
+          ) : (
+            <span className="text-sm text-slate-400">
+              No roles available
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

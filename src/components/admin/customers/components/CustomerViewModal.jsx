@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   X,
   UserRound,
   LayoutDashboard,
   MapPin,
   ShoppingBag,
-  Activity,
+  LoaderCircle,
 } from "lucide-react";
 
 import CustomerStatusBadge from "./CustomerStatusBadge";
@@ -13,65 +13,89 @@ import CustomerOverview from "./CustomerOverview";
 import CustomerPersonalDetails from "./CustomerPersonalDetails";
 import CustomerAddresses from "./CustomerAddresses";
 import CustomerOrderHistory from "./CustomerOrderHistory";
-import CustomerActivity from "./CustomerActivity";
 
-import { MOCK_CUSTOMER_DETAILS } from "../data/customerData";
+import FeatureError from "../../shared/FeatureError";
 
 const TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "personal", label: "Personal Details", icon: UserRound },
   { id: "addresses", label: "Addresses", icon: MapPin },
   { id: "orders", label: "Order History", icon: ShoppingBag },
-  { id: "activity", label: "Activity", icon: Activity },
 ];
 
-const CustomerViewModal = ({ isOpen, onClose, customer }) => {
+const CustomerViewModal = ({
+  isOpen,
+  onClose,
+  customer,
+  customerDetails,
+  isLoading = false,
+  error,
+  onRetry,
+}) => {
   const [activeTab, setActiveTab] = useState("overview");
+
+  useEffect(() => {
+    setActiveTab("overview");
+  }, [customer?.customerId]);
 
   if (!isOpen || !customer) return null;
 
-  const details = MOCK_CUSTOMER_DETAILS[customer.customerId] || {};
+  // Use detailed API data when available.
+  // Keep the table row as a fallback while loading.
+  const profile = customerDetails || customer;
 
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case "personal":
-        return (
-          <CustomerPersonalDetails
-            customer={customer}
-            details={details}
-          />
-        );
+  
+const renderTabContent = () => {
+  // Initial loading state
+  if (isLoading && !customerDetails) {
+    return (
+      <div className="flex min-h-64 flex-col items-center justify-center">
+        <LoaderCircle
+          size={32}
+          className="animate-spin text-blue-600"
+        />
+        <p className="mt-3 text-sm text-slate-500">
+          Loading customer details...
+        </p>
+      </div>
+    );
+  }
 
-      case "addresses":
-        return (
-          <CustomerAddresses
-            addresses={details.addresses || []}
-          />
-        );
+  // API error state with retry button
+  if (error && !customerDetails) {
+    return (
+      <FeatureError
+        title="Unable to load customer details"
+        message={error}
+        onRetry={onRetry}
+      />
+    );
+  }
 
-      case "orders":
-        return (
-          <CustomerOrderHistory
-            orders={details.orders || []}
-          />
-        );
+  // Render customer details
+  switch (activeTab) {
+    case "personal":
+      return <CustomerPersonalDetails customer={profile} />;
 
-      case "activity":
-        return (
-          <CustomerActivity
-            activities={details.activities || []}
-          />
-        );
+    case "addresses":
+      return (
+        <CustomerAddresses
+          addresses={profile.addresses || []}
+        />
+      );
 
-      default:
-        return (
-          <CustomerOverview
-            customer={customer}
-            details={details}
-          />
-        );
-    }
-  };
+    case "orders":
+      return (
+        <CustomerOrderHistory
+          orders={profile.orders || []}
+        />
+      );
+
+    default:
+      return <CustomerOverview customer={profile} />;
+  }
+};
+
 
   return (
     <div
@@ -107,7 +131,7 @@ const CustomerViewModal = ({ isOpen, onClose, customer }) => {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-4">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-lg font-bold text-blue-600">
-                {customer.customerName
+                {profile.customerName
                   ?.split(" ")
                   .map((part) => part[0])
                   .slice(0, 2)
@@ -117,28 +141,28 @@ const CustomerViewModal = ({ isOpen, onClose, customer }) => {
 
               <div className="min-w-0">
                 <h3 className="truncate text-lg font-bold text-slate-900">
-                  {customer.customerName}
+                  {profile.customerName}
                 </h3>
 
                 <p className="mt-1 break-all text-sm text-slate-500">
-                  {customer.email}
+                  {profile.email}
                 </p>
 
                 <p className="mt-1 text-xs text-slate-400">
-                  Customer ID: #{customer.customerId}
+                  Customer ID: #{profile.customerId}
                 </p>
               </div>
             </div>
 
             <div className="shrink-0">
-              <CustomerStatusBadge status={customer.status} />
+              <CustomerStatusBadge status={profile.status} />
             </div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="overflow-x-auto border-b border-slate-100 px-4 sm:px-6">
-          <div className="flex min-w-max gap-1">
+        <div className="sticky top-0 z-20 shrink-0 border-b border-slate-100 bg-white px-4 sm:px-6">
+          <div className="flex min-h-[58px] min-w-max gap-1">
             {TABS.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -148,7 +172,7 @@ const CustomerViewModal = ({ isOpen, onClose, customer }) => {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 border-b-2 px-3 py-4 text-sm font-semibold transition ${
+                  className={`flex shrink-0 items-center gap-2 border-b-2 px-3 py-4 text-sm font-semibold transition ${
                     isActive
                       ? "border-blue-600 text-blue-600"
                       : "border-transparent text-slate-500 hover:text-slate-800"
@@ -161,9 +185,16 @@ const CustomerViewModal = ({ isOpen, onClose, customer }) => {
             })}
           </div>
         </div>
+       
 
         {/* Tab Content */}
         <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
+           {isLoading && customerDetails && (
+            <div className="mb-3 flex items-center gap-2 text-xs text-blue-600">
+              <LoaderCircle size={13} className="animate-spin" />
+              Refreshing customer details...
+            </div>
+          )}  
           {renderTabContent()}
         </div>
 

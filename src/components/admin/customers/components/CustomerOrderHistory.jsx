@@ -1,3 +1,4 @@
+
 import { ShoppingBag } from "lucide-react";
 
 const STATUS_STYLES = {
@@ -13,8 +14,18 @@ const CustomerOrderHistory = ({ orders = [] }) => {
     new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(amount || 0);
+      maximumFractionDigits: 2,
+    }).format(Number(amount) || 0);
+
+  const formatDate = (date) => {
+    if (!date) return "—";
+
+    return new Date(date).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
 
   if (!orders.length) {
     return (
@@ -32,48 +43,60 @@ const CustomerOrderHistory = ({ orders = [] }) => {
 
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-100">
-      <table className="w-full min-w-[650px] text-left">
+      <table className="w-full min-w-[750px] text-left">
         <thead className="bg-slate-50">
           <tr className="text-xs uppercase tracking-wider text-slate-400">
             <th className="px-5 py-4 font-semibold">Order ID</th>
             <th className="px-5 py-4 font-semibold">Date</th>
             <th className="px-5 py-4 font-semibold">Items</th>
             <th className="px-5 py-4 font-semibold">Amount</th>
-            <th className="px-5 py-4 font-semibold">Status</th>
+            <th className="px-5 py-4 font-semibold">Payment</th>
+            <th className="px-5 py-4 font-semibold">Order Status</th>
           </tr>
         </thead>
 
         <tbody className="divide-y divide-slate-100">
-          {orders.map((order) => (
-            <tr key={order.orderId} className="text-sm">
-              <td className="px-5 py-4 font-semibold text-blue-600">
-                {order.orderId}
-              </td>
+          {orders.map((order) => {
+            const orderStatus = order.orderStatus || "PENDING";
+            const paymentStatus = order.payment?.pgStatus || "—";
 
-              <td className="px-5 py-4 text-slate-600">
-                {new Date(order.orderDate).toLocaleDateString("en-IN")}
-              </td>
+            return (
+              <tr key={order.orderId} className="text-sm">
+                <td className="px-5 py-4 font-semibold text-blue-600">
+                  #{order.orderId}
+                </td>
 
-              <td className="px-5 py-4 text-slate-600">
-                {order.items}
-              </td>
+                <td className="px-5 py-4 whitespace-nowrap text-slate-600">
+                  {formatDate(order.orderDate)}
+                </td>
 
-              <td className="px-5 py-4 font-semibold text-slate-800">
-                {formatCurrency(order.amount)}
-              </td>
+                <td className="px-5 py-4 text-slate-600">
+                  {order.orderItems?.length ?? 0}
+                </td>
 
-              <td className="px-5 py-4">
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                    STATUS_STYLES[order.status] ||
-                    "bg-slate-100 text-slate-600"
-                  }`}
-                >
-                  {order.status}
-                </span>
-              </td>
-            </tr>
-          ))}
+                <td className="px-5 py-4 whitespace-nowrap font-semibold text-slate-800">
+                  {formatCurrency(order.totalAmount)}
+                </td>
+
+                <td className="px-5 py-4">
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                    {paymentStatus}
+                  </span>
+                </td>
+
+                <td className="px-5 py-4">
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      STATUS_STYLES[orderStatus] ||
+                      "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {orderStatus}
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

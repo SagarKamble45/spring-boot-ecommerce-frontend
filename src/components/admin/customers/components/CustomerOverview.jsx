@@ -1,3 +1,4 @@
+
 import {
   ShoppingBag,
   IndianRupee,
@@ -5,17 +6,15 @@ import {
   MapPin,
 } from "lucide-react";
 
-const CustomerOverview = ({ customer, details }) => {
+const CustomerOverview = ({ customer }) => {
   const formatCurrency = (amount) =>
     new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(amount || 0);
+      maximumFractionDigits: 2,
+    }).format(Number(amount) || 0);
 
-  const defaultAddress = details?.addresses?.find(
-    (address) => address.isDefault
-  );
+  const savedAddress = customer.addresses?.[0];
 
   const InfoCard = ({ icon: Icon, label, value }) => (
     <div className="rounded-xl border border-slate-100 bg-white p-4">
@@ -36,7 +35,7 @@ const CustomerOverview = ({ customer, details }) => {
         <InfoCard
           icon={ShoppingBag}
           label="Total Orders"
-          value={customer.totalOrders || 0}
+          value={customer.totalOrders ?? 0}
         />
 
         <InfoCard
@@ -50,10 +49,13 @@ const CustomerOverview = ({ customer, details }) => {
           label="Customer Since"
           value={
             customer.createdAt
-              ? new Date(customer.createdAt).toLocaleDateString("en-IN", {
-                  month: "short",
-                  year: "numeric",
-                })
+              ? new Date(customer.createdAt).toLocaleDateString(
+                  "en-IN",
+                  {
+                    month: "short",
+                    year: "numeric",
+                  },
+                )
               : "—"
           }
         />
@@ -63,26 +65,30 @@ const CustomerOverview = ({ customer, details }) => {
         <div className="mb-4 flex items-center gap-2">
           <MapPin size={18} className="text-blue-600" />
           <h3 className="font-bold text-slate-800">
-            Default Address
+            Saved Address
           </h3>
         </div>
 
-        {defaultAddress ? (
+        {savedAddress ? (
           <div className="space-y-1 text-sm text-slate-600">
             <p className="font-semibold text-slate-900">
-              {defaultAddress.fullName}
+              {savedAddress.fullName}
             </p>
-            <p>{defaultAddress.addressLine}</p>
+
+            <p>{savedAddress.address}</p>
+
             <p>
-              {defaultAddress.city}, {defaultAddress.state} -{" "}
-              {defaultAddress.postalCode}
+              {savedAddress.city}, {savedAddress.state} -{" "}
+              {savedAddress.pincode}
             </p>
-            <p>{defaultAddress.country}</p>
-            <p className="pt-2">{defaultAddress.phone}</p>
+
+            <p>{savedAddress.country}</p>
+
+            <p className="pt-2">{savedAddress.phone}</p>
           </div>
         ) : (
           <p className="text-sm text-slate-400">
-            No default address available.
+            No saved address available.
           </p>
         )}
       </div>

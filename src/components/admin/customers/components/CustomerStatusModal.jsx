@@ -4,6 +4,8 @@ import {
   ShieldAlert,
   UserCheck,
   UserX,
+  AlertCircle,
+  LoaderCircle,
 } from "lucide-react";
 
 const CustomerStatusModal = ({
@@ -12,6 +14,7 @@ const CustomerStatusModal = ({
   onClose,
   onConfirm,
   isUpdating = false,
+  error = null,
 }) => {
   if (!isOpen || !customer) return null;
 
@@ -81,6 +84,16 @@ const CustomerStatusModal = ({
             </p>
           </div>
 
+          {error && (
+            <div
+              role="alert"
+              className="mb-4 flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700"
+            >
+              <AlertCircle size={17} className="mt-0.5 shrink-0" />
+              <p>{error}</p>
+            </div>
+          )}
+
           {/* Status Preview */}
           <div className="mt-5 flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-4">
             <div className="flex items-center gap-3">
@@ -96,9 +109,7 @@ const CustomerStatusModal = ({
                 <p className="text-sm font-semibold text-slate-800">
                   {customer.customerName}
                 </p>
-                <p className="text-xs text-slate-500">
-                  {customer.email}
-                </p>
+                <p className="text-xs text-slate-500">{customer.email}</p>
               </div>
             </div>
 
@@ -123,12 +134,14 @@ const CustomerStatusModal = ({
           >
             {isCurrentlyActive ? (
               <>
-                <p className="font-semibold">What happens after deactivation?</p>
+                <p className="font-semibold">
+                  What happens after deactivation?
+                </p>
                 <p className="mt-1">
-                  This account will be marked inactive. Once backend
-                  enforcement is connected, this customer will not be able to
-                  place new orders. Existing orders and customer history will
-                  be preserved.
+                  This account will be marked inactive. Once backend enforcement
+                  is connected, this customer will not be able to place new
+                  orders. Existing orders and customer history will be
+                  preserved.
                 </p>
               </>
             ) : (
@@ -164,11 +177,16 @@ const CustomerStatusModal = ({
                 : "bg-green-600 hover:bg-green-700"
             }`}
           >
-            {isUpdating
-              ? "Updating..."
-              : isCurrentlyActive
-                ? "Deactivate Customer"
-                : "Activate Customer"}
+            {isUpdating ? (
+              <span className="inline-flex items-center gap-2">
+                <LoaderCircle size={16} className="animate-spin" />
+                Updating...
+              </span>
+            ) : isCurrentlyActive ? (
+              "Deactivate Customer"
+            ) : (
+              "Activate Customer"
+            )}
           </button>
         </div>
       </div>

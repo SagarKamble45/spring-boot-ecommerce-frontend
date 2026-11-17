@@ -1,7 +1,27 @@
-
 import { ChevronLeft, ChevronRight, Users } from "lucide-react";
 import CustomerTableToolbar from "./CustomerTableToolbar";
 import CustomerTableRow from "./CustomerTableRow";
+
+import { RefreshCw } from "lucide-react";
+import FeatureError from "../../shared/FeatureError";
+
+const CustomerTableSkeleton = () => (
+  <>
+    {Array.from({ length: 5 }).map((_, index) => (
+      <tr key={index} className="animate-pulse border-b border-slate-100">
+        {Array.from({ length: 8 }).map((_, columnIndex) => (
+          <td key={columnIndex} className="px-5 py-5">
+            <div
+              className={`h-4 rounded bg-slate-200 ${
+                columnIndex === 0 ? "w-28" : "w-20"
+              }`}
+            />
+          </td>
+        ))}
+      </tr>
+    ))}
+  </>
+);
 
 const CustomerTable = ({
   customers = [],
@@ -15,14 +35,20 @@ const CustomerTable = ({
   totalPages,
   onPageChange,
   totalElements,
+  loading = false,
+  error = null,
+  onRetry,
 }) => {
-  const startItem =
-    totalElements === 0 ? 0 : (currentPage - 1) * 10 + 1;
+  const startItem = totalElements === 0 ? 0 : (currentPage - 1) * 10 + 1;
 
   const endItem = Math.min(currentPage * 10, totalElements);
 
+  const showInitialLoading = loading && customers.length === 0;
+  const showError = Boolean(error) && customers.length === 0;
+
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      
       <CustomerTableToolbar
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
@@ -30,11 +56,19 @@ const CustomerTable = ({
         setStatusFilter={setStatusFilter}
       />
 
+      {loading && customers.length > 0 && (
+  <span className="inline-flex items-center gap-2 text-xs font-medium text-blue-600">
+    <RefreshCw size={13} className="animate-spin" />
+    Updating...
+  </span>
+)}
+
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1050px] text-left">
+        <table className="w-full min-w-[1150px] text-left">
           <thead className="bg-slate-50">
             <tr className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               <th className="px-5 py-4">Customer</th>
+              <th className="px-5 py-4">Assigned Roles</th>
               <th className="px-5 py-4">Contact Details</th>
               <th className="px-5 py-4 text-center">Orders</th>
               <th className="px-5 py-4">Total Spent</th>
@@ -45,7 +79,9 @@ const CustomerTable = ({
           </thead>
 
           <tbody>
-            {customers.length > 0 ? (
+            {showInitialLoading ? (
+              <CustomerTableSkeleton />
+            ) : customers.length > 0 ? (
               customers.map((customer) => (
                 <CustomerTableRow
                   key={customer.customerId}
@@ -56,20 +92,24 @@ const CustomerTable = ({
               ))
             ) : (
               <tr>
-                <td colSpan="7" className="px-5 py-16 text-center">
-                  <div className="flex flex-col items-center">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                      <Users size={26} />
+                <td colSpan="8" className="px-5 py-12">
+                  {showError ? (
+                    <FeatureError
+                      title="Unable to load customers"
+                      message={error}
+                      onRetry={onRetry}
+                    />
+                  ) : (
+                    <div className="text-center">
+                      <Users size={28} className="mx-auto text-slate-400" />
+                      <h3 className="mt-3 font-semibold text-slate-800">
+                        No customers found
+                      </h3>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Try changing your search or status filter.
+                      </p>
                     </div>
-
-                    <h3 className="mt-4 text-sm font-semibold text-slate-800">
-                      No customers found
-                    </h3>
-
-                    <p className="mt-1 text-sm text-slate-500">
-                      Try changing your search or status filter.
-                    </p>
-                  </div>
+                  )}
                 </td>
               </tr>
             )}
@@ -85,9 +125,7 @@ const CustomerTable = ({
             {startItem}-{endItem}
           </span>{" "}
           of{" "}
-          <span className="font-semibold text-slate-700">
-            {totalElements}
-          </span>{" "}
+          <span className="font-semibold text-slate-700">{totalElements}</span>{" "}
           customers
         </p>
 

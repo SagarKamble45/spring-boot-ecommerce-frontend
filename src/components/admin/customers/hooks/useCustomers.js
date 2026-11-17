@@ -1,140 +1,357 @@
-import { useEffect, useMemo, useState } from "react";
-import { MOCK_CUSTOMERS } from "../data/customerData";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useSearchParams } from "react-router-dom";
+import {
+  fetchAdminCustomers,
+  fetchCustomerDetails,
+  fetchCustomerStats,
+  updateCustomerStatus,
+} from "../../../../store/action";
+import toast from "react-hot-toast";
 
-const PAGE_SIZE = 10;
+
+
+
+const DEFAULT_PAGE_SIZE = 10;
+const SEARCH_DEBOUNCE_MS = 350;
+
+// build backend qury parameters
+// frontend page is 1-based; spirng boot pageNumber is 0-based
+export const buildCustomerQuery = (
+  searchParams,
+  pageSize = DEFAULT_PAGE_SIZE,
+) => {
+  const requestedPage = Number(searchParams.get("page") ?? "1");
+
+  const currentPage =
+    Number.isSafeInteger(requestedPage) && requestedPage >= 1
+      ? requestedPage
+      : 1;
+
+  const params = new URLSearchParams();
+
+  params.set("pageNumber", String(currentPage - 1));
+  params.set("pageSize", String(pageSize));
+
+  const keyword = searchParams.get("keyword")?.trim();
+  const status = searchParams.get("status");
+  const sortBy = searchParams.get("sortBy") || "userId";
+  const sortOrder = (searchParams.get("sortOrder") || "DESC").toLowerCase();
+
+  if (keyword) {
+    params.set("keyword", keyword);
+  }
+
+  if (status && status.toUpperCase() !== "ALL") {
+    params.set("status", status.toUpperCase());
+  }
+
+  params.set("sortBy", sortBy);
+  params.set("sortOrder", sortOrder);
+
+  return params.toString();
+};
 
 const useCustomers = () => {
-  const [customers, setCustomers] = useState(MOCK_CUSTOMERS);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  const [currentPage, setCurrentPage] = useState(1);
+  const dispatch = useDispatch();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // redux state
+  const {
+    adminCustomers,
+    customerPagination,
+    customerLoading,
+    customerError,
+
+    customerStats,
+    customerStatsLoading,
+    customerStatsError,
+
+    customerDetails,
+    customerDetailsLoading,
+    customerDetailsError,
+
+    customerMutationLoading,
+    customerMutationError,
+  } = useSelector((state) => state.customer);
+
+  const pageSize = DEFAULT_PAGE_SIZE;
+
+  // URL parameter
+  const requestedPage = Number(searchParams.get("page") ?? "1");
+
+  const currentPage =
+    Number.isSafeInteger(requestedPage) && requestedPage >= 1
+      ? requestedPage
+      : 1;
+
+  const keyword = searchParams.get("keyword") ?? "";
+  const statusFilter = searchParams.get("status") ?? "ALL";
+
+  const sortBy = searchParams.get("sortBy") || "userId";
+  const sortOrder = (searchParams.get("sortOrder") || "DESC").toUpperCase();
+
+  // Search Input state
+  const [searchTerm, setSearchTerm] = useState(keyword);
+
+  // Modal State
   const [selectedCustomer, setSelectedCustomer] = useState(null);
-
   const [pendingStatusCustomer, setPendingStatusCustomer] = useState(null);
-  const [isStatusUpdating, setIsStatusUpdating] = useState(false);
 
-  // Filter customers
-  const filteredCustomers = useMemo(() => {
-    const search = searchTerm.trim().toLowerCase();
-
-    return customers.filter((customer) => {
-      const matchesSearch =
-        !search ||
-        customer.customerName.toLowerCase().includes(search) ||
-        customer.email.toLowerCase().includes(search) ||
-        (customer.phone || "").includes(search);
-
-      const matchesStatus =
-        statusFilter === "ALL" || customer.status === statusFilter;
-
-      return matchesSearch && matchesStatus;
-    });
-  }, [customers, searchTerm, statusFilter]);
-
-  // Pagination
-  const totalElements = filteredCustomers.length;
-  const totalPages = Math.ceil(totalElements / PAGE_SIZE);
-
-  const paginatedCustomers = useMemo(() => {
-    const startIndex = (currentPage - 1) * PAGE_SIZE;
-
-    return filteredCustomers.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [filteredCustomers, currentPage]);
-
-  // Reset page when search or filter changes
+  // keep search input synchronized with URL changes
   useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
+    setSearchTerm(keyword);
+  }, [keyword]);
 
-  // Customer statistics
-  const stats = useMemo(() => {
-    return {
-      totalCustomers: customers.length,
+  // Normalise page parameter
+  useEffect(() => {
+    if (searchParams.get("page") !== String(currentPage)) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set("page", String(currentPage));
 
-      activeCustomers: customers.filter(
-        (customer) => customer.status === "ACTIVE",
-      ).length,
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams, currentPage]);
 
-      inactiveCustomers: customers.filter(
-        (customer) => customer.status === "INACTIVE",
-      ).length,
+  // Debounced server-side search
+  useEffect(() => {
+    const normalizedInput = searchTerm.trim();
 
-      totalOrders: customers.reduce(
-        (total, customer) => total + (customer.totalOrders || 0),
-        0,
-      ),
-    };
-  }, [customers]);
+    if (normalizedInput === keyword.trim()) {
+      return undefined;
+    }
+
+    const timeoutId = setTimeout(() => {
+      const nextParams = new URLSearchParams(searchParams);
+
+      if (normalizedInput) {
+        nextParams.set("keyword", normalizedInput);
+      } else {
+        nextParams.delete("keyword");
+      }
+
+      nextParams.set("page", "1");
+      setSearchParams(nextParams);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, keyword, searchParams, setSearchParams]);
+
+  // Build backend query string.
+  const queryString = useMemo(
+    () => buildCustomerQuery(searchParams, pageSize),
+    [searchParams, pageSize],
+  );
+
+  // Fetch customers whenever query parameters change.
+  useEffect(() => {
+    dispatch(fetchAdminCustomers(queryString));
+  }, [dispatch, queryString]);
+
+  // Fetch statistics when the page loads.
+  useEffect(() => {
+    dispatch(fetchCustomerStats());
+  }, [dispatch]);
+
+  // Search handler.
+  const handleSearchChange = useCallback((value) => {
+    setSearchTerm(value);
+  }, []);
+
+  // Status filter handler.
+  const handleStatusChange = useCallback(
+    (nextStatus) => {
+      const nextParams = new URLSearchParams(searchParams);
+      const normalizedStatus = nextStatus?.toUpperCase();
+
+      if (!normalizedStatus || normalizedStatus === "ALL") {
+        nextParams.delete("status");
+      } else {
+        nextParams.set("status", normalizedStatus);
+      }
+
+      nextParams.set("page", "1");
+      setSearchParams(nextParams);
+    },
+    [searchParams, setSearchParams],
+  );
+
+  // Sorting handlers.
+  const handleSortByChange = useCallback(
+    (nextSortBy) => {
+      const nextParams = new URLSearchParams(searchParams);
+
+      nextParams.set("sortBy", nextSortBy);
+      nextParams.set("page", "1");
+
+      setSearchParams(nextParams);
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const handleSortOrderChange = useCallback(
+    (nextSortOrder) => {
+      const nextParams = new URLSearchParams(searchParams);
+
+      nextParams.set("sortOrder", nextSortOrder.toUpperCase());
+      nextParams.set("page", "1");
+
+      setSearchParams(nextParams);
+    },
+    [searchParams, setSearchParams],
+  );
+
+  // Pagination handler.
+  const handlePageChange = useCallback(
+    (nextPage) => {
+      const page = Number(nextPage);
+
+      if (!Number.isSafeInteger(page) || page < 1 || page === currentPage) {
+        return;
+      }
+
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set("page", String(page));
+
+      setSearchParams(nextParams);
+    },
+    [currentPage, searchParams, setSearchParams],
+  );
+
+  // Refresh customer list.
+  const refresh = useCallback(() => {
+    return dispatch(fetchAdminCustomers(queryString));
+  }, [dispatch, queryString]);
+
+  // Refresh customer statistics.
+  const refreshCustomerStats = useCallback(() => {
+    return dispatch(fetchCustomerStats());
+  }, [dispatch]);
 
   // Open customer details
-  const handleViewCustomer = (customer) => {
-    setSelectedCustomer(customer);
-  };
+  const handleViewCustomer = useCallback(
+    async (customer) => {
+      setSelectedCustomer(customer);
 
-  const handleCloseCustomer = () => {
+      // Clear previous customer's details and errors
+      dispatch({ type: "CLEAR_CUSTOMER_DETAILS" });
+
+      return dispatch(fetchCustomerDetails(customer.customerId));
+    },
+    [dispatch],
+  );
+
+  // Retry customer details API
+  const retryCustomerDetails = useCallback(() => {
+    if (!selectedCustomer?.customerId) return;
+
+    return dispatch(fetchCustomerDetails(selectedCustomer.customerId));
+  }, [dispatch, selectedCustomer]);
+
+  // Close customer details.
+  const handleCloseCustomer = useCallback(() => {
     setSelectedCustomer(null);
-  };
+    dispatch({ type: "CLEAR_CUSTOMER_DETAILS" });
+  }, [dispatch]);
 
-  // Temporary mock status update
-  const handleRequestStatusChange = (customer) => {
+  // Open status confirmation modal.
+  const handleRequestStatusChange = useCallback((customer) => {
     setPendingStatusCustomer(customer);
-  };
+  }, []);
 
-  const handleCancelStatusChange = () => {
-    if (isStatusUpdating) return;
+  // Cancel status confirmation.
+  const handleCancelStatusChange = useCallback(() => {
+    if (customerMutationLoading) return;
 
     setPendingStatusCustomer(null);
-  };
+  }, [customerMutationLoading]);
 
-  const handleConfirmStatusChange = () => {
-    if (!pendingStatusCustomer || isStatusUpdating) return;
-
-    setIsStatusUpdating(true);
+  // Confirm customer status update.
+  const handleConfirmStatusChange = useCallback(async () => {
+    if (!pendingStatusCustomer || customerMutationLoading) {
+      return;
+    }
 
     const customerId = pendingStatusCustomer.customerId;
 
     const updatedStatus =
       pendingStatusCustomer.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
 
-    setCustomers((previousCustomers) =>
-      previousCustomers.map((customer) =>
-        customer.customerId === customerId
-          ? { ...customer, status: updatedStatus }
-          : customer,
-      ),
+    const result = await dispatch(
+      updateCustomerStatus(customerId, updatedStatus, queryString, toast),
     );
 
-    // Keep the selected profile status in sync if its modal is open.
-    setSelectedCustomer((previousCustomer) =>
-      previousCustomer?.customerId === customerId
-        ? { ...previousCustomer, status: updatedStatus }
-        : previousCustomer,
-    );
+    if (result?.ok) {
+      setPendingStatusCustomer(null);
 
-    setPendingStatusCustomer(null);
-    setIsStatusUpdating(false);
-  };
+      // Refresh statistics because active/inactive counts changed.
+      dispatch(fetchCustomerStats());
+
+      // Refresh open customer details if the same profile is selected.
+      if (selectedCustomer?.customerId === customerId) {
+        dispatch(fetchCustomerDetails(customerId));
+      }
+    }
+
+    return result;
+  }, [
+    dispatch,
+    pendingStatusCustomer,
+    customerMutationLoading,
+    queryString,
+    selectedCustomer,
+  ]);
 
   return {
-    customers: paginatedCustomers,
+    // Customer list
+    customers: adminCustomers,
+    customerLoading,
+    customerError,
+
+    // Search and filters
     searchTerm,
-    setSearchTerm,
+    setSearchTerm: handleSearchChange,
     statusFilter,
-    setStatusFilter,
+    setStatusFilter: handleStatusChange,
+
+    // Sorting
+    sortBy,
+    sortOrder,
+    handleSortByChange,
+    handleSortOrderChange,
+
+    // Pagination
     currentPage,
-    setCurrentPage,
-    totalPages,
-    totalElements,
-    stats,
+    setCurrentPage: handlePageChange,
+    totalPages: customerPagination.totalPages,
+    totalElements: customerPagination.totalElements,
+    pageSize,
+
+    // Statistics
+    stats: customerStats,
+    customerStatsLoading,
+    customerStatsError,
+    refreshCustomerStats,
+
+    // Customer details
     selectedCustomer,
+    customerDetails,
+    customerDetailsLoading,
+    customerDetailsError,
     handleViewCustomer,
     handleCloseCustomer,
+    retryCustomerDetails,
 
+    // Customer status
     pendingStatusCustomer,
-    isStatusUpdating,
+    isStatusUpdating: customerMutationLoading,
+    customerMutationError,
     handleRequestStatusChange,
     handleCancelStatusChange,
     handleConfirmStatusChange,
+
+    // Refresh
+    refresh,
   };
 };
 

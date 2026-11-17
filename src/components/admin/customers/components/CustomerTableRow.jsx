@@ -1,4 +1,3 @@
-
 import { Eye, Ban, CheckCircle } from "lucide-react";
 import CustomerStatusBadge from "./CustomerStatusBadge";
 
@@ -30,11 +29,7 @@ const formatDate = (date) => {
   });
 };
 
-const CustomerTableRow = ({
-  customer,
-  onView,
-  onToggleStatus,
-}) => {
+const CustomerTableRow = ({ customer, onView, onToggleStatus }) => {
   const isActive = customer.status === "ACTIVE";
 
   return (
@@ -50,10 +45,26 @@ const CustomerTableRow = ({
             <p className="truncate text-sm font-semibold text-slate-800">
               {customer.customerName}
             </p>
-            <p className="text-xs text-slate-400">
-              ID: #{customer.customerId}
-            </p>
+            <p className="text-xs text-slate-400">ID: #{customer.customerId}</p>
           </div>
+        </div>
+      </td>
+
+      {/* Assigned Roles */}
+      <td className="px-5 py-4">
+        <div className="flex max-w-52 flex-wrap gap-1.5">
+          {customer.roles?.length > 0 ? (
+            customer.roles.map((role) => (
+              <span
+                key={role}
+                className="rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700"
+              >
+                {role.replace("ROLE_", "")}
+              </span>
+            ))
+          ) : (
+            <span className="text-xs text-slate-400">—</span>
+          )}
         </div>
       </td>
 
@@ -117,11 +128,7 @@ const CustomerTableRow = ({
                 : "border-emerald-100 text-emerald-600 hover:bg-emerald-50"
             }`}
           >
-            {isActive ? (
-              <Ban size={17} />
-            ) : (
-              <CheckCircle size={17} />
-            )}
+            {isActive ? <Ban size={17} /> : <CheckCircle size={17} />}
           </button>
         </div>
       </td>
