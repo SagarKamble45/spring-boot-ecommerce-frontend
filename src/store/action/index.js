@@ -387,49 +387,59 @@ export const logOutUser = (navigate, toast) => async (dispatch) => {
   }
 };
 
+
 export const addUpdateUserAddress =
-  (newAddress, toast) => async (dispatch, getState) => {
-    const { user } = getState().auth;
-
-    dispatch({ type: "ADD_ADDRESS" });
-
+  (newAddress, toast) => async (dispatch) => {
     try {
-      // if the address already has an addressId, it exists in the DB -> update it
-      // otherwise it's a brand new address -> create it
       if (newAddress.addressId) {
-        await api.put(`addresses/${newAddress.addressId}`, newAddress);
+        await api.put(
+          `addresses/${newAddress.addressId}`,
+          newAddress
+        );
         toast.success("Address updated successfully");
       } else {
         await api.post("addresses", newAddress);
         toast.success("Address saved successfully");
       }
 
-      // refresh the address list from the server so the UI reflects
-      // the latest data without needing a manual page reload
-      dispatch(getUserAddresses());
+      await dispatch(getUserAddresses());
+      return true;
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Something went wrong");
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        "Something went wrong";
+
+      toast.error(message);
+      return false;
     }
   };
 
-export const getUserAddresses = () => async (dispatch, getState) => {
+
+export const getUserAddresses = () => async (dispatch) => {
+  dispatch({ type: "ADDRESS_LOADING" });
+
   try {
-    dispatch({ type: "IS_FETCHING" });
     const { data } = await api.get("/users/addresses");
-    // console.log(data)
-    dispatch({ type: "USER_ADDRESS", payload: data });
-    dispatch({ type: "IS_SUCCESS" });
-  } catch (error) {
-    console.log(error);
+
     dispatch({
-      type: "IS_ERROR",
-      payload:
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        error?.response?.data ||
-        error?.message ||
-        "Failed to fetch user address",
+      type: "USER_ADDRESS",
+      payload: data,
     });
+
+    return data;
+  } catch (error) {
+    const message =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      "Failed to fetch addresses";
+
+    dispatch({
+      type: "ADDRESS_ERROR",
+      payload: message,
+    });
+
+    return null;
   }
 };
 
@@ -1264,7 +1274,7 @@ export const fetchSellerStats = () => async (dispatch) => {
 };
 
 // ----------------------------------
-// Customer API Actions
+//  Admin Customer API Actions
 // ----------------------------------
 
 // Common Customer Error message
@@ -1308,7 +1318,6 @@ export const fetchAdminCustomers =
   };
 
 // Fetch Customer statistics
-
 export const fetchCustomerStats = () => async (dispatch) => {
   dispatch({ type: "CUSTOMER_STATS_LOADING" });
 
@@ -1404,3 +1413,194 @@ export const updateCustomerStatus =
       return { ok: false, error: message };
     }
   };
+
+// ==========================================
+// Customer - My Profile
+// ==========================================
+
+// Fetch the currently authenticated user's profile
+export const getMyProfile = () => async (dispatch) => {
+  dispatch({ type: "PROFILE_LOADING" });
+
+  try {
+    const { data } = await api.get("/user/profile");
+
+    dispatch({
+      type: "FETCH_MY_PROFILE",
+      payload: data,
+    });
+
+    return data;
+  } catch (error) {
+    const message =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      (typeof error?.response?.data === "string"
+        ? error.response.data
+        : null) ||
+      error?.message ||
+      "Failed to fetch profile";
+
+    dispatch({
+      type: "PROFILE_ERROR",
+      payload: message,
+    });
+
+    return null;
+  }
+};
+
+
+
+// Update the currently authenticated user's profile
+export const updateMyProfile = (profileData) => async (dispatch) => {
+  dispatch({ type: "PROFILE_UPDATE_LOADING" });
+
+  try {
+    const payload = {
+      phone: profileData.phone,
+      gender: profileData.gender,
+    };
+
+    const { data } = await api.put("/user/profile", payload);
+
+    dispatch({
+      type: "PROFILE_UPDATED",
+      payload: data,
+    });
+
+    return { ok: true, data };
+  } catch (error) {
+    const message =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      (typeof error?.response?.data === "string"
+        ? error.response.data
+        : null) ||
+      error?.message ||
+      "Failed to update profile";
+
+    dispatch({
+      type: "PROFILE_UPDATE_ERROR",
+      payload: message,
+    });
+
+    return { ok: false, error: message };
+  }
+};
+
+// Change password
+export const changeMyPassword = (passwordData) => async (dispatch) => {
+  dispatch({ type: "PASSWORD_UPDATE_LOADING" });
+
+  try {
+    const payload = {
+      currentPassword: passwordData.currentPassword,
+      newPassword: passwordData.newPassword,
+    };
+
+    const { data } = await api.put(
+      "/user/profile/change-password",
+      payload
+    );
+
+    dispatch({
+      type: "PASSWORD_UPDATE_SUCCESS",
+    });
+
+    return { ok: true, data };
+  } catch (error) {
+    const message =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      (typeof error?.response?.data === "string"
+        ? error.response.data
+        : null) ||
+      error?.message ||
+      "Failed to update password";
+
+    dispatch({
+      type: "PASSWORD_UPDATE_ERROR",
+      payload: message,
+    });
+
+    return { ok: false, error: message };
+  }
+};
+
+export const deleteUserAddress =
+  (addressId, toast) => async (dispatch) => {
+    dispatch({ type: "ADDRESS_MUTATION_LOADING" });
+
+    try {
+      await api.delete(`/addresses/${addressId}`);
+
+      toast.success("Address deleted successfully");
+
+      await dispatch(getUserAddresses());
+      dispatch({ type: "ADDRESS_MUTATION_SUCCESS" });
+
+      return true;
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        "Failed to delete address";
+
+      dispatch({
+        type: "ADDRESS_MUTATION_ERROR",
+        payload: message,
+      });
+
+      toast.error(message);
+      return false;
+    }
+  };
+
+
+
+
+
+// ==========================================
+// Customer - My Orders
+// ==========================================
+
+export const getMyOrders =
+  (queryString = "pageNumber=0&pageSize=10&sortBy=orderDate&sortOrder=desc") =>
+  async (dispatch) => {
+    try {
+      // Start loading
+      dispatch({ type: "MY_ORDERS_LOADING" });
+
+      // Fetch orders belonging to the logged-in customer
+      const { data } = await api.get(`/user/orders?${queryString}`);
+
+      // Store orders and pagination details in Redux
+      dispatch({
+        type: "FETCH_MY_ORDERS",
+        payload: data.content || [],
+        pageNumber: data.pageNumber,
+        pageSize: data.pageSize,
+        totalElements: data.totalElements,
+        totalPages: data.totalPages,
+        lastPage: data.lastPage,
+      });
+
+      return data;
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to fetch your orders";
+
+      dispatch({
+        type: "MY_ORDERS_ERROR",
+        payload: message,
+      });
+
+      return null;
+    }
+  };
+
+  

@@ -155,7 +155,7 @@ function UserMenu({ user, onLogout }) {
             </Link>
 
             <Link
-              to="/orders"
+              to="/my-orders"
               onClick={() => setIsOpen(false)}
               className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition text-slate-700"
             >

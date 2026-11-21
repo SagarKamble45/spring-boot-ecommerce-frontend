@@ -1,14 +1,24 @@
 
 const initialState = {
   orderConfirmation: [],
+
+  // Admin orders
   adminOrders: [],
   pagination: {},
   orderStats: {},
   recentOrders: [],
 
-  // Orders list
+  // Customer - My Orders
+  myOrders: [],
+  myOrdersPagination: {},
+
+  // Admin orders loading/error
   ordersLoading: false,
   ordersError: null,
+
+  // Customer orders loading/error
+  myOrdersLoading: false,
+  myOrdersError: null,
 
   // Order statistics
   orderStatsLoading: false,
@@ -28,7 +38,7 @@ export const orderReducer = (state = initialState, action) => {
       };
 
     // ----------------------------------
-    // All Orders
+    // Admin - All Orders
     // ----------------------------------
     case "ORDERS_LOADING":
       return {
@@ -57,6 +67,38 @@ export const orderReducer = (state = initialState, action) => {
         ...state,
         ordersLoading: false,
         ordersError: action.payload,
+      };
+
+    // ----------------------------------
+    // Customer - My Orders
+    // ----------------------------------
+    case "MY_ORDERS_LOADING":
+      return {
+        ...state,
+        myOrdersLoading: true,
+        myOrdersError: null,
+      };
+
+    case "FETCH_MY_ORDERS":
+      return {
+        ...state,
+        myOrders: action.payload,
+        myOrdersLoading: false,
+        myOrdersError: null,
+        myOrdersPagination: {
+          pageNumber: action.pageNumber,
+          pageSize: action.pageSize,
+          totalElements: action.totalElements,
+          totalPages: action.totalPages,
+          lastPage: action.lastPage,
+        },
+      };
+
+    case "MY_ORDERS_ERROR":
+      return {
+        ...state,
+        myOrdersLoading: false,
+        myOrdersError: action.payload,
       };
 
     // ----------------------------------
