@@ -177,7 +177,7 @@ function Navbar() {
                 </Link>
               </li>
 
-              {user && user.id ? (
+              {user && (user.id || user.userId) ? (
                 <li className="w-full md:w-auto">
                   <UserMenu user={user} />
                 </li>

@@ -1,12 +1,7 @@
-
 import "./App.css";
 import React from "react";
 
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-} from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 import { Toaster } from "react-hot-toast";
 
@@ -42,8 +37,10 @@ import ServerErrorPage from "./components/error/ServerErrorPage";
 import NotFoundPage from "./components/error/NotFoundPage";
 import Customers from "./components/admin/customers/Customers";
 
-// Error pages
-
+// Customers
+import Profile from "./components/customer/Profile";
+import MyOrders from "./components/customer/orders/MyOrders";
+import MyAddress from "./components/customer/address/MyAddress";
 
 function App() {
   return (
@@ -69,15 +66,12 @@ function App() {
 
           {/* Authenticated user routes */}
           <Route element={<PrivateRoute />}>
+            <Route path="/profile" element={<Profile />} />
             <Route path="/checkout" element={<Checkout />} />
-            <Route
-              path="/order-success"
-              element={<PaymentConfirmation />}
-            />
-            <Route
-              path="/orders"
-              element={<PaymentConfirmation />}
-            />
+            <Route path="/order-success" element={<PaymentConfirmation />} />
+            <Route path="/my-orders" element={<MyOrders />} />
+            <Route path="/addresses" element={<MyAddress />} />
+
           </Route>
 
           {/* Admin routes */}
